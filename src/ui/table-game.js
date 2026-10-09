@@ -13,15 +13,20 @@
 //         onTournament(event)（大会が終わった・やめて判定したとき。dojo/stats.js の eventOf の1件。自由対局をメニューからやめたときは呼ばない。
 //           昇段したら { label, quality, step } を返す。終わりの札に「昇段しました」と出す）,
 //         onEnd(info)（大会が終わった・やめたとき）, onExit()（メニューから戻る）,
-//         sound（音の指揮役 ui/sound.js。なければ鳴らさない）, soundOn()（音を出すか）, onToggleSound()（卓の右上のボタン。切り替えたあとの入／切を返す）}
+//         sound（音の指揮役 ui/sound.js。なければ鳴らさない）, soundOn()（音を出すか）, onToggleSound()（卓の右上のボタン。切り替えたあとの入／切を返す）,
+//         motion()（動きの設定 { factor（速さの係数）, reduce（動きを減らすか）}。ui/motion-settings.js の motionNow。なければふつうの速さ）}
 import { mountShell, renderAll, fitStage } from './table-view.js';
 import { mountPortraitShell, renderPortrait } from './table-portrait.js';
 import { createAmountBar } from './amount-bar.js';
 import { createCueTracker, handEndCues, championOf } from './sound-cues.js';
+import { createMotion } from './motion.js';
+import { motionPlan, timedCues, RESULT_HOLD_MS } from './motion-plan.js';
+import { FAST_FACTOR } from './motion-settings.js';
 import { createDial } from './dial.js';
 import { buildView } from './view-model.js';
 import { clampTo } from './presets.js';
 import { fmt, esc } from './format.js';
+import { resultBannerHTML } from './result-banner.js';
 import { buildCoachView, buildReport } from './coach-view.js';
 import {
   reportHTML, luckLineHTML, mainEndHTML, examStartHTML, examEndHTML, examLeaks, tatsujinHTML, promoteHTML,
@@ -63,6 +68,15 @@ export function gridOf(a, players) {
   return { cells: gridCells(a.ranges[a.main]), title: `${players[a.opps[a.main]].name}の手（推定・13×13）` };
 }
 const IDLE = { phase: 'idle', analysis: null, verdict: null, handLog: [], review: [], error: null };
+
+// 結果の帯を出しておく長さ：勝負になったハンドはいつも3秒（早回しでも）、ほかは速さの係数を掛ける（設計書 段階5-3 第4-1・5節）
+export const resultHoldMs = (result, f) => (result?.showdown ? RESULT_HOLD_MS : Math.round(RESULT_HOLD_MS * f));
+// 動きの速さの係数：⏩ を押している間と、あなたが降りたあとは「とても速い」。ほかは設定の速さ（cfg：motionNow の結果。読めなければふつう）
+export const motionFactor = (fast, cfg) => (fast ? Math.min(FAST_FACTOR, cfg?.factor ?? 1) : cfg?.factor ?? 1);
+// 描く形：あなたの番を待っているときだけ手番のボタンを出す（台本が流れている間は押せない形。流し終えて番が始まってから押せる）
+export const viewFor = (view, waiting) => (waiting ? view : { ...view, controls: null });
+// 卓を押したことにしない所：ボタン・右上の丸いボタン・メニューなどの札・手元・コーチの欄（PC）・コーチの板と上の段（縦）
+export const NOT_TABLE = 'button, .rb, .overlay, .pane, .cp, .pt-sheet, .pt-dim, .pt-strip, .pt-top';
 const MODES = [1, 2, 3, 4, 5].map((n) => `<button class="mb" data-start="${n}">段階${n}</button>`).join('');
 
 export function createTableGame(stage, opts) {
@@ -114,18 +128,56 @@ export function createTableGame(stage, opts) {
   const tracker = createCueTracker();
   const whoOf = (seat) => session.tournament.players[seat]?.id ?? null;
   // メニューなどの札が出ている間は鳴らさない（札の裏で卓が進んでも音を出さない。設計書 段階4-5 第4-3節）
-  const cue = (list) => { try { opts.sound?.emit(list, { fast: speed(), paused: refs.overlay.classList.contains('show') }); } catch (e) { console.error(e); } };
-  function soundDeal() {
+  // 時間をおいて鳴らす音も、鳴らす時に札が出ていれば鳴らさない（段階5-3：音の時刻を動きにそろえたので、配る音などが遅れて鳴る）
+  const cue = (list) => { try { opts.sound?.emit(list, { fast: speed(), paused: () => refs.overlay.classList.contains('show') }); } catch (e) { console.error(e); } };
+  // 配ったときの音（卓に着いた人の掛け声も先読みする）
+  function dealCues() {
     try { opts.sound?.prefetch(session.tournament.players.filter((_, i) => session.hand.seats[i]?.inHand).map((p) => p.id)); } catch (e) { console.error(e); }
-    cue(tracker.deal(session.hand));
+    return tracker.deal(session.hand);
   }
-  const soundStep = () => cue(tracker.step(session.hand, { whoOf }));
-  function soundEnd() {
+  // ハンドが終わったら：ポットを取る音と一言を、最後の行動の音に足す（ポットを流す動きの時刻にそろう。設計書 段階5-3 第3-4節）
+  function withEnd(list) {
+    if (session.hand.street !== 'complete') return list;
     try {
       const championSeat = championOf(session.hand, { lastTable: !main || session.main.field.final });
-      cue(handEndCues(session.hand, { whoOf, heroSeat: HERO_SEAT, championSeat }));
-    } catch (e) { console.error(e); }
+      return [...list, ...handEndCues(session.hand, { whoOf, heroSeat: HERO_SEAT, championSeat })];
+    } catch (e) {
+      console.error(e);
+      return list;
+    }
   }
+  const stepCues = () => withEnd(tracker.step(session.hand, { whoOf }));
+
+  // 動き（設計書 段階5-3 第3・5・6節）：形が変わるたびに、前の形との違いを台本にして卓の上で流す。どこが失敗しても、卓の進行は止めない
+  const motionCfg = () => { try { return opts.motion?.() ?? null; } catch (e) { console.error(e); return null; } };
+  const motion = createMotion(stage, { reduce: () => !!motionCfg()?.reduce });
+  const factor = () => motionFactor(speed(), motionCfg());
+  // 描き直す前の位置を読み、音の時刻を台本にそろえて鳴らし、描いて、台本を流し終わるまで待つ。
+  // prev：前のハンドの形（配ったときは null）、cues：音の並び、f：速さの係数
+  async function show(prev, cues, f = factor()) {
+    let plan = null;
+    let before = {};
+    let timed = cues;
+    try {
+      plan = motionPlan(prev, session.hand, { factor: f, heroSeat: HERO_SEAT });
+      timed = timedCues(cues, plan.steps, HERO_SEAT);
+      before = motion.measure();
+    } catch (e) {
+      console.error(e);
+      plan = null;
+    }
+    cue(timed);
+    draw();
+    if (!plan) return;
+    try { await motion.play(plan, before); } catch (e) { console.error(e); }
+  }
+  // 結果の帯を出しておく。その前でも、卓を押せば次へ
+  let wake = null;
+  const holdResult = (ms) => new Promise((resolve) => {
+    const done = () => { clearTimeout(timer); wake = null; resolve(); };
+    const timer = setTimeout(done, ms);
+    wake = done;
+  });
   const muteIcon = () => { refs.mute.textContent = opts.soundOn?.() === false ? '🔇' : '🔊'; };
 
   // 卓の上の帯（数秒で消える）
@@ -138,6 +190,7 @@ export function createTableGame(stage, opts) {
 
   function draw() {
     if (!session) return;
+    if (motion.busy()) motion.skip(); // 動いている途中に描き直すときは、動きを最後まで飛ばしてから（位置がずれたまま動かさない）
     ui.fast = speed();
     if (main) ui.band = `${exam ? '最終試験' : '本番大会'}　${session.main.field.final ? '決勝卓' : `卓${session.main.table + 1}`}`;
     try {
@@ -153,7 +206,7 @@ export function createTableGame(stage, opts) {
     ui.exam = exam ? { decisions: attemptDecisions().length, tournaments: attempt.tournaments } : null;
     // 縦の並べ方の板の「手の表」のタブ
     ui.grid = portrait ? gridOf(coach.analysis, session.tournament.players) : null;
-    parts.render(refs, buildView(session), ui);
+    parts.render(refs, viewFor(buildView(session), waitingHero), ui);
     const n = allDecisions().length;
     refs.stop.hidden = !chapter || ended || n < GAME_RULE.minDecisions;
     refs.stop.textContent = `やめて判定する（判断${n}回）`;
@@ -164,10 +217,12 @@ export function createTableGame(stage, opts) {
     refs.overlay.dataset.kind = kind;
     refs.overlay.classList.add('show');
     gate.arm(performance.now()); // 札が出た直後のクリック・ダブルクリックの2回目で、札のボタンを押さない
+    motion.pause(); // 札が出ている間は、動きを止めて待つ（設計書 段階5-3 第6節）
   }
   function hideOverlay() {
     refs.overlay.classList.remove('show');
     refs.overlay.innerHTML = '';
+    motion.resume();
   }
   const currentOverlay = () => (refs.overlay.classList.contains('show') ? { html: refs.overlay.innerHTML, kind: refs.overlay.dataset.kind } : null);
 
@@ -175,6 +230,7 @@ export function createTableGame(stage, opts) {
     console.error(e);
     runId++;
     waitingHero = false;
+    motion.skip();
     // 第5・6章は、繰り越した判断を残したまま次の大会を始める（段階4-2 第8節）
     const keep = chapter && chapterOf(chapter.id).keepGoing;
     // 本番大会・最終試験は、最後の保存から続けられる（タイトルの「本番大会」・道場の「最終試験」から）
@@ -185,10 +241,6 @@ export function createTableGame(stage, opts) {
 
   // 非同期の進行は必ずこれを通す（例外で画面が黙って止まらないように）
   const run = (fn) => guarded(() => fn(runId), showError);
-
-  function resultBanner(view) {
-    return view.result.winners.map((w) => `<b>${esc(w.name)}</b> ${w.hand ? `（${w.hand}）` : ''} +${fmt(w.amount)}`).join('<br>');
-  }
 
   // あなたの手番の始まり：コーチの分析を出し、ダイヤルを新しい判断の額にする
   function startHeroTurn() {
@@ -216,8 +268,7 @@ export function createTableGame(stage, opts) {
       // 前のハンドの採点は次の配りに持ち越さない（段階4の振り返りは残す。段階2の繰越）
       coach = { ...coach, phase: coach.phase === 'review' ? 'review' : 'idle', analysis: null, verdict: null, handLog: [] };
       ui.banner = null;
-      soundDeal();
-      draw();
+      await show(null, withEnd(dealCues()));
       while (session.hand.street !== 'complete') {
         if (myRun !== runId) return;
         if (isHeroTurn(session)) {
@@ -226,9 +277,9 @@ export function createTableGame(stage, opts) {
         }
         await sleep(speed() ? 100 : 700);
         if (myRun !== runId) return;
+        const prev = session.hand;
         session = cpuAct(session);
-        soundStep();
-        draw();
+        await show(prev, stepCues());
       }
       await finishHandAndMaybeEnd(myRun);
       if (myRun !== runId || ended) return;
@@ -315,9 +366,10 @@ export function createTableGame(stage, opts) {
   }
 
   async function finishHandAndMaybeEnd(myRun) {
+    // 最後の台本を待っている間に卓をやめていたら、何もしない（記録・続きの保存・大会の成績を書き戻さない）
+    if (myRun !== runId) return;
     const view = buildView(session);
-    ui.banner = resultBanner(view);
-    soundEnd();
+    ui.banner = resultBannerHTML(view.result); // 音（ポットを取る音・一言）は、最後の行動の音といっしょに鳴らした
     // 段階4の場面の判断は、ハンドが終わってからまとめて振り返る
     const review = coach.handLog.filter((d) => coachShows(d.level, 'handEnd') === 'review');
     if (review.length) {
@@ -335,7 +387,7 @@ export function createTableGame(stage, opts) {
     const verdicts = session.decisions.filter((d) => d.handNo === handNo);
     const closed = main ? closeMainHand(result, verdicts) : null;
     draw();
-    await sleep(speed() ? 900 : 2600);
+    await holdResult(resultHoldMs(view.result, factor()));
     if (myRun !== runId) return;
     ui.banner = null;
     if (main) {
@@ -374,9 +426,9 @@ export function createTableGame(stage, opts) {
       if (isHeroTurn(session)) { startHeroTurn(); return; }
       await sleep(speed() ? 100 : 700);
       if (myRun !== runId) return;
+      const prev = session.hand;
       session = cpuAct(session);
-      soundStep();
-      draw();
+      await show(prev, stepCues());
     }
     await finishHandAndMaybeEnd(myRun);
     if (myRun !== runId || ended || session.tournament.finished || !heroAlive(session)) return;
@@ -392,6 +444,8 @@ export function createTableGame(stage, opts) {
       action = { type: 'raise', to: clampTo(dial.value() ?? legal.raise.min, legal.raise) };
     }
     waitingHero = false;
+    const f = factor(); // あなたの行動は、行動する前の速さで動かす（降りたら、その次の動きから早回し）
+    const prev = session.hand;
     let graded = null;
     if (coach.analysis) {
       try {
@@ -410,11 +464,12 @@ export function createTableGame(stage, opts) {
       session = act(session, action);
       coach = { ...coach, phase: 'idle', analysis: null };
     }
-    soundStep();
     // 本番大会・最終試験：行動するたびに続きを保存する（閉じても、閉じた所から続く。設計書 段階4-4 第6節）
     if (main) opts.onSave?.(mainSnapshot(session, results.all()));
-    draw();
-    run(resumeAfterHero);
+    run(async (myRun) => {
+      await show(prev, stepCues(), f);
+      if (myRun === runId) await resumeAfterHero(myRun);
+    });
   }
 
   function showGrid() {
@@ -540,6 +595,12 @@ export function createTableGame(stage, opts) {
     if (e.target.closest('[data-grid]')) showGrid();
     if (e.target.closest('[data-repeat]')) showRepeat();
   });
+  // 卓を押したら：動いているものを最後まで飛ばす。結果の帯が出ているときは、待たずに次のハンドへ（設計書 段階5-3 第5節）
+  stage.firstElementChild?.addEventListener('click', (e) => {
+    if (e.target.closest?.(NOT_TABLE)) return;
+    if (motion.busy()) motion.skip();
+    else wake?.();
+  });
   refs.overlay.addEventListener('click', (e) => {
     if (!gate.accept(performance.now(), e.detail)) return;
     const s = e.target.closest('[data-start]');
@@ -594,7 +655,8 @@ export function createTableGame(stage, opts) {
 
   return {
     // 画面を離れるとき：進行を止める
-    stop() { runId++; ended = true; },
+    stop() { runId++; ended = true; motion.skip(); },
+    skipMotion: () => motion.skip(), // 窓の大きさが変わった・画面を回したとき（main.js）
     session: () => session,
   };
 }

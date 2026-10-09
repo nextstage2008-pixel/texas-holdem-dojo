@@ -2,6 +2,7 @@
 import { esc, localStamp } from '../format.js';
 import { DEFAULT_SOUND, HERO_VOICES, CHATTER, NO_VOICE } from '../../dojo/sound-settings.js';
 import { SFX_CREDITS } from '../sfx.js';
+import { SPEEDS, DEFAULT_MOTION } from '../motion-settings.js';
 
 // 入／切のボタン（押すと main.js の操作 snd が k を切り替える。v があればその値にする）
 const tg = (k, on, label, v = null) => `<button class="tg${on ? ' on' : ''}" data-go="snd" data-k="${k}"${v === null ? '' : ` data-v="${v}"`}>${label}</button>`;
@@ -28,7 +29,21 @@ function soundHTML(s, credits) {
     </div>`;
 }
 
-// v：{ name, usable（保存できるか）, sound（音の設定。省くと初めの値）, credits（使っている声のキャラ。省くと出さない）}
+// 動きの欄（設計書 段階5-3 第5節）。m：{ speed, reduce（いまの入／切。端末の設定に従うときも入か切に直したもの）}
+// 押すと main.js の操作 mv が k の項目を変える（data-v があればその値に、なければ入／切を入れ替える）
+function motionHTML(m) {
+  const mv = (k, on, label, v = null) => `<button class="tg${on ? ' on' : ''}" data-go="mv" data-k="${k}"${v === null ? '' : ` data-v="${v}"`}>${label}</button>`;
+  return `<div class="det mv"><h5>動き</h5>
+        <div class="snd-grid">
+          <span>動きの速さ</span><div class="snd-ctl">${SPEEDS.map((s) => mv('speed', s.key === m.speed, s.label, s.key)).join('')}</div>
+          <span>動きを減らす</span><div class="snd-ctl">${mv('reduce', m.reduce === true, m.reduce === true ? '入' : '切')}</div>
+        </div>
+        <p class="small">⏩ を押している間と、降りたあとは「とても速い」。勝負になったハンドの勝負と結果は、ふつうの速さで見せます。動きを減らすと、カードやチップは行き先にふわっと出るだけになります。</p>
+      </div>`;
+}
+
+// v：{ name, usable（保存できるか）, sound（音の設定。省くと初めの値）, credits（使っている声のキャラ。省くと出さない）,
+//      motion（動きの設定。省くと初めの値）}
 export function settingsHTML(v) {
   return `<div class="scr st-s">
   <div class="sbar"><button class="back" data-go="title">◀ タイトル</button><h4>設 定</h4><span class="sp"></span></div>
@@ -40,6 +55,7 @@ export function settingsHTML(v) {
         <p>別のパソコンへ移すときや、公開版に引っ越すときは、書き出したファイルを読み込みます。</p>
         <div class="st-btns"><button class="nb p" data-go="export">記録を書き出す</button><button class="nb" data-go="import">記録を読み込む</button><button class="nb danger" data-go="reset">記録を消して最初から</button></div>
       </div>
+      ${motionHTML(v.motion ?? DEFAULT_MOTION)}
       <div class="det"><h5>このゲームについて</h5><p>お金を賭けないこと・記録・素材の出どころ・権利</p><div class="st-btns"><button class="nb" data-go="about">このゲームについて</button></div></div>
     </div>
     ${soundHTML(v.sound ?? DEFAULT_SOUND, v.credits ?? [])}

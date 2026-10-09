@@ -31,6 +31,7 @@ import { canTakeExam } from './dojo/exam.js';
 import { createAudio, bindUnlock } from './ui/audio.js';
 import { createSound } from './ui/sound.js';
 import { soundSettings, withSound } from './dojo/sound-settings.js';
+import { motionSettings, withMotion, motionNow } from './ui/motion-settings.js';
 import { layoutFor, layoutInputs } from './ui/layout.js';
 import { NUDGE_TEXT, afterTournament, afterExport, isSafariTab, requestPersist, HOME_HOWTO } from './ui/keep-record.js';
 
@@ -47,6 +48,8 @@ const SAFARI_TAB = isSafariTab({
   displayStandalone: !!window.matchMedia?.('(display-mode: standalone)').matches,
 });
 const COARSE = !!window.matchMedia?.('(pointer: coarse)').matches;
+// 端末の「動きを減らす」（設定の「動きを減らす」がまだ選ばれていないときに従う。設計書 段階5-3 第5節）
+const REDUCED = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 // 公開版だけの窓口（src/pwa/register.js が置く）。新しい版が待ちに入ったら、タイトルの画面なら描き直して知らせる（設計書 段階5-2 第3-4節）
 const PWA = window.__holdemPWA ?? null;
 PWA?.onChange(() => { if (screen.name === 'title' && overlay === null) render(); });
@@ -150,7 +153,12 @@ function render() {
   if (s.name === 'lecture') html = lectureHTML(buildLectureView(s.ch, s.page));
   if (s.name === 'quiz') html = quizHTML({ mode: s.mode, chapterId: s.ch, index: s.index, total: s.list.length, correct: s.correct, q: s.q, chosen: s.chosen });
   if (s.name === 'result') html = testResultHTML(s.view);
-  if (s.name === 'settings') html = settingsHTML({ name: rec.profile.name ?? '', usable: storage.usable, sound: soundSettings(rec.settings), credits: voiceCredits });
+  if (s.name === 'settings') {
+    html = settingsHTML({
+      name: rec.profile.name ?? '', usable: storage.usable, sound: soundSettings(rec.settings), credits: voiceCredits,
+      motion: { ...motionSettings(rec.settings), reduce: motionNow(rec.settings, REDUCED).reduce },
+    });
+  }
   if (s.name === 'about') html = aboutHTML({ credits: voiceCredits, version: VERSION_LINE });
   if (s.name === 'stats') html = statsHTML(buildStatsView(rec, s.tab ?? 'quality'));
   stage.innerHTML = html + (overlay ?? '');
@@ -277,11 +285,12 @@ function countTournament() {
   if (r.nudge) notices.push(NUDGE_TEXT);
 }
 
-// 卓に渡す音の部品（設計書 段階4-5）。右上のボタンは「音を出す」を入れ替える
+// 卓に渡す音と動きの部品（設計書 段階4-5・段階5-3）。右上のボタンは「音を出す」を入れ替える
 const soundOpts = () => ({
   sound,
   soundOn: () => soundSettings(rec.settings).on,
   onToggleSound: () => setSound({ on: !soundSettings(rec.settings).on }),
+  motion: () => motionNow(rec.settings, REDUCED),
 });
 
 function startChapterGame(ch) {
@@ -424,6 +433,12 @@ const ACTIONS = {
     render();
   },
   'snd-preview': () => sound.preview(soundSettings(rec.settings).heroVoice),
+  // 動きの速さと「動きを減らす」（data-v があればその値に、なければ今の入／切を入れ替える）
+  mv: (el) => {
+    const k = el.dataset.k;
+    commit(withMotion(rec, { [k]: el.dataset.v ?? !motionNow(rec.settings, REDUCED)[k] }));
+    render();
+  },
   pick: (el) => show({ name: 'dojo', selected: el.dataset.ch }),
   step: (el) => goStep(screen.selected ?? currentChapter(rec), el.dataset.step),
   review: startReview,
@@ -467,6 +482,7 @@ stage.addEventListener('click', (e) => {
 // 起動演出はどのキーでも飛ばす。名前の欄の Enter で送る（変換中の Enter は送らない）
 window.addEventListener('keydown', (e) => onKey(e, screen.name, { skip: afterSplash, submit: submitName }));
 window.addEventListener('resize', () => {
+  table?.skipMotion(); // 卓の動きは最後まで飛ばしてから描き直す（設計書 段階5-3 第6節）
   if (applyLayout()) render();
   fitStage(stage);
 });

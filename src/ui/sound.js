@@ -99,12 +99,14 @@ export function createSound({ audio, manifest: first = null, settings, rng = Mat
       book = createVoiceBook(m, rng);
       fetched.clear();
     }),
-    // 音の並びを鳴らす。fast：早回しの間、paused：メニューなどの札が出ている間（どちらも何も鳴らさない）
+    // 音の並びを鳴らす。fast：早回しの間、paused：メニューなどの札が出ている間（どちらも何も鳴らさない）。
+    // paused は「いま札が出ているか」を返す関数でもよい（時間をおいて鳴らす音も、鳴らす時に札が出ていれば鳴らさない。段階5-3）
     emit: guard((cues, { fast = false, paused = false } = {}) => {
-      if (fast || paused || !Array.isArray(cues) || !cues.length) return;
+      const isPaused = typeof paused === 'function' ? paused : () => paused;
+      if (fast || isPaused() || !Array.isArray(cues) || !cues.length) return;
       if (!settings().on) return;
       for (const c of cues) {
-        const fire = guard(() => (c.sfx ? playSfx(c.sfx) : c.voice ? playVoice(c.voice, c.chatter === true) : undefined));
+        const fire = guard(() => (isPaused() ? undefined : c.sfx ? playSfx(c.sfx) : c.voice ? playVoice(c.voice, c.chatter === true) : undefined));
         if (c.at > 0) wait(Math.round(c.at * 1000), fire);
         else fire();
       }

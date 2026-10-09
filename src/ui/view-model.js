@@ -8,6 +8,7 @@ import { HERO_SEAT } from '../game/session.js';
 import { presetTargets, potTotal } from './presets.js';
 import { fmt } from './format.js';
 import { drawOuts } from '../calc/odds.js';
+import { showdownLit } from './best-five.js';
 
 const ACTION_LABEL = { fold: '降り', check: 'チェック', call: 'コール' };
 const STREET_LABEL = { preflop: 'プリフロップ', flop: 'フロップ', turn: 'ターン', river: 'リバー' };
@@ -55,6 +56,8 @@ export function buildView(session) {
   const h = session.hand;
   const n = t.seatCount;
   const complete = h?.street === 'complete';
+  // 勝負になったハンドの光らせ方（役を作った5枚。設計書 段階5-3 第4-1節）。ほかは null
+  const lit = complete ? showdownLit(h) : null;
 
   const seats = t.players.map((p, i) => {
     const hs = h?.seats[i];
@@ -78,6 +81,7 @@ export function buildView(session) {
       action: h && !complete ? lastAction(h, i) : null,
       cards,
       hole: cards === 'up' ? hs.hole : null,
+      lit: cards === 'up' && lit ? (lit.hole[i] ?? [false, false]) : null, // 見せた札ごとに、役に使ったか（使わない札は暗くする）
       handName: complete && h.result.showdown && live ? describe(h.result.scores[i]) : null,
       won: complete ? h.result.won[i] : 0,
       place: p.place,
@@ -96,14 +100,15 @@ export function buildView(session) {
     avg: fs ? fs.avg : Math.round(chips / Math.max(alive, 1)), handNo: t.handNumber + 1,
   };
 
-  const pot = h ? potTotal(h) : 0;
-  const collected = h ? pot - h.seats.reduce((a, s) => a + s.bet, 0) : 0;
+  // 終わったハンドのポットは勝った人へ流れたので出さない（設計書 段階5-3 第4-1節）
+  const pot = h && !complete ? potTotal(h) : 0;
+  const collected = h && !complete ? pot - h.seats.reduce((a, s) => a + s.bet, 0) : 0;
 
   const me = h?.seats[HERO_SEAT];
   let hero = null;
   if (me?.hole) {
     const title = me.folded ? startingHandLabel(me.hole[0], me.hole[1]) : handTitle(me.hole, h.board);
-    hero = { hole: me.hole, title, folded: me.folded };
+    hero = { hole: me.hole, title, folded: me.folded, lit: lit && !me.folded ? (lit.hole[HERO_SEAT] ?? [false, false]) : null };
   }
 
   let controls = null;
@@ -145,5 +150,7 @@ export function buildView(session) {
   const buttonDisp = h ? (h.button - HERO_SEAT + n) % n : null;
   // 大会の状況のタブ（本番大会だけ）：大会全体の数字と卓の人数
   const field = fs && { ...fs, avgBB: fs.avg / lv.bb };
-  return { seats, board: h ? h.board : [], button: h ? h.button : null, buttonDisp, pot, collected, hud, hero, controls, result, logLines, standings, field };
+  return {
+    seats, board: h ? h.board : [], boardLit: lit ? lit.board : null, button: h ? h.button : null, buttonDisp, pot, collected, hud, hero, controls, result, logLines, standings, field,
+  };
 }

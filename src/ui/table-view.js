@@ -5,14 +5,21 @@ import { chipBreakdown, fmt, esc } from './format.js';
 import { coachHTML, examCoachHTML } from './coach-panel.js';
 import { dialStart } from './presets.js';
 import { stageScale } from './layout.js';
+import { winLabelHTML } from './result-banner.js';
 
 // 表示位置0（あなた）から時計回り。x は部屋の幅に対する%、y は px（確定見本と同じ座標）
 const SEAT_POS = [[50, 462], [24, 448], [9, 372], [12, 258], [33, 186], [67, 186], [88, 258], [91, 372], [76, 448]];
 const CENTER = [50, 330];
+// 勝負に勝った人の札の置き場所（表示位置ごとの中心。x は部屋の幅に対する%、y は px）。見せた札・名札・場の札・結果の帯を隠さない所
+// （設計書 段階5-3 第4-1節）：上の段の席（3〜6）は顔の上（王冠も避ける）、あなたと下の段の席（1・8）は名札の下、横の席（2・7）は中央寄り。
+// 席の周りが詰まっていて、上の段の席から中央へ寄せると見せた札と場の札に、席1・8 はBB などの印と結果の帯に、あなたは顔に重なるため
+export const PC_WINS = [[50, 541], [24, 527], [24.6, 352], [12, 165], [33, 96], [67, 96], [88, 165], [75.4, 352], [76, 527]];
 const toward = ([x, y], k) => [x + (CENTER[0] - x) * k, y + (CENTER[1] - y) * k];
 const avatarSrc = (name) => `assets/avatars/${name}.webp`;
 // 顔のない人（本番大会の36人）は、名前の頭文字の丸い札
 export const initialOf = (name) => Array.from(name ?? '')[0] ?? '？';
+// 勝負の光らせ方：lit（役に使ったかの並び）があれば、使った札に lit・使わない札に dim
+export const litClass = (size, lit, k) => [size, lit ? (lit[k] ? 'lit' : 'dim') : ''].filter(Boolean).join(' ');
 const faceHTML = (avatar, name) => (avatar ? `<img src="${avatarSrc(avatar)}" alt="${esc(name)}">` : `<div class="initial">${esc(initialOf(name))}</div>`);
 
 // labels：{ mark（盾の文字：「自由」や章の印）, name（あなたの名前）, sub（「自由対局」や章の名前）}
@@ -33,11 +40,11 @@ export function mountShell(stage, labels = { mark: '自由', name: 'あなた', 
       <div class="rb" style="right:64px" data-ref="mute" title="音（入／切）">🔊</div>
       <div class="scene"><div class="plane"><div class="rail"><div class="wood"><div class="felt">
         <div class="flogo">やっしーGAMES<small>TEXAS HOLD'EM DOJO</small></div>
-        <div class="fboard" data-ref="board"></div>
+        <div class="fboard" data-ref="board" data-mv="center"></div>
       </div></div></div></div></div>
       <div data-ref="layer"></div>
       <div class="pane"><div class="pane-in">
-        <div class="hero" data-ref="heroCards"></div>
+        <div class="hero" data-ref="heroCards" data-mv="cards-0"></div>
         <div class="mid"><div class="hand2" data-ref="handInfo"></div><div class="btnrow" data-ref="buttons"></div></div>
         <div class="dial off" data-ref="dial"></div>
       </div></div>
@@ -70,12 +77,11 @@ export function seatHTML(sv) {
   const name = esc(sv.name);
   const sub = sv.out ? (sv.place ? `${sv.place}位` : '敗退') : sv.folded ? `${name}・降り` : name;
   return `<div class="${cls}" style="left:${x}%;top:${y}px">
-    ${sv.won > 0 ? `<span class="won">+${fmt(sv.won)}</span>` : ''}
-    <div class="frame">${faceHTML(sv.avatar, sv.name)}</div>
-    <div class="plate"><b>${sv.out ? '―' : fmt(sv.stack)}</b>${sub}</div>
+    <div class="frame" data-mv="seat-${sv.disp}">${faceHTML(sv.avatar, sv.name)}</div>
+    <div class="plate" data-mv="stack-${sv.disp}"><b>${sv.out ? '―' : fmt(sv.stack)}</b>${sub}</div>
     ${sv.badge ? `<span class="badge">${sv.badge}</span>` : ''}
     ${sv.action && !sv.folded ? `<span class="act">${sv.action}</span>` : ''}
-    ${sv.handName ? `<span class="hn">${sv.handName}</span>` : ''}
+    ${sv.handName && !(sv.won > 0) ? `<span class="hn">${sv.handName}</span>` : ''}
   </div>`;
 }
 
@@ -88,31 +94,37 @@ function layerHTML(view) {
       const [sx, sy] = SEAT_POS[sv.disp];
       const [cx, cy] = [sx + (sx < 50 ? 8 : -8), sy + 28];
       html += sv.cards === 'up'
-        ? `<div class="ups" style="left:${cx}%;top:${cy}px">${sv.hole.map((c) => cardHTML(c, 'sm')).join('')}</div>`
-        : `<div class="backs" style="left:${cx}%;top:${cy}px">${cardBackHTML()}${cardBackHTML()}</div>`;
+        ? `<div class="ups" data-mv="cards-${sv.disp}" style="left:${cx}%;top:${cy}px">${sv.hole.map((c, k) => cardHTML(c, litClass('sm', sv.lit, k))).join('')}</div>`
+        : `<div class="backs" data-mv="cards-${sv.disp}" style="left:${cx}%;top:${cy}px">${cardBackHTML()}${cardBackHTML()}</div>`;
     }
     if (sv.bet > 0) {
       const [bx, by] = toward(SEAT_POS[sv.disp], 0.45);
-      html += `<div class="cstack" style="left:${bx}%;top:${by + 12}px">${chipStackSVG(chipBreakdown(sv.bet, 8), 15)}</div>`;
+      html += `<div class="cstack" data-mv="bet-${sv.disp}" style="left:${bx}%;top:${by + 12}px">${chipStackSVG(chipBreakdown(sv.bet, 8), 15)}</div>`;
       html += `<div class="amt" style="left:${bx + 5}%;top:${by}px">${fmt(sv.bet)}</div>`;
     }
     html += seatHTML(sv);
+    // 勝負に勝った人の札：役の名前と勝った額（設計書 段階5-3 第4-1節。置き場所は PC_WINS）
+    if (sv.won > 0 && sv.handName) {
+      const [px, py] = PC_WINS[sv.disp];
+      html += `<div class="winpill" style="left:${px}%;top:${py}px">${winLabelHTML(sv)}</div>`;
+    }
   }
   if (view.buttonDisp !== null) {
     // ディーラーボタンは名札の外側（卓の縁寄り）に置き、伏せ札やチップと重ねない
     const [sx, sy] = SEAT_POS[view.buttonDisp];
-    html += `<div class="dealer" style="left:${sx + (sx < 50 ? -7 : 7)}%;top:${sy + 32}px">D</div>`;
+    html += `<div class="dealer" data-mv="dealer" style="left:${sx + (sx < 50 ? -7 : 7)}%;top:${sy + 32}px">D</div>`;
   }
   // ポットは場のカードのすぐ下（フェルトのロゴの上）。場のカードやあなたの賭けのチップと重ならない
   if (view.collected > 0) {
     html += `<div class="cstack" style="left:43%;top:362px">${chipStackSVG(chipBreakdown(view.collected, 10), 20)}</div>`;
   }
-  if (view.pot > 0) html += `<div class="amt" style="left:54%;top:348px">ポット ${fmt(view.pot)}</div>`;
+  if (view.pot > 0) html += `<div class="amt" data-mv="pot" style="left:54%;top:348px">ポット ${fmt(view.pot)}</div>`;
   return html;
 }
 
-function boardHTML(board) {
-  let html = board.map((c) => cardHTML(c)).join('');
+// 場の札（k 枚目に位置の目印 board-k）。PC の卓と縦の卓で同じ
+export function boardHTML(board, lit = null) {
+  let html = board.map((c, k) => cardHTML(c, litClass('', lit, k)).replace('<div class="', `<div data-mv="board-${k}" class="`)).join('');
   for (let k = board.length; k < 5; k++) html += '<div class="slot"></div>';
   return html;
 }
@@ -158,7 +170,7 @@ export function renderAll(refs, view, ui) {
   refs.hudBody.innerHTML = hudHTML(view.hud);
   refs.info.innerHTML = `残り <b>${view.hud.alive}</b> / ${view.hud.total}人　入賞 <b>${view.hud.paid}</b>位まで<br>平均 <b>${fmt(view.hud.avg)}</b>　ハンド #${view.hud.handNo}`;
   refs.speed.classList.toggle('on', ui.fast);
-  refs.board.innerHTML = boardHTML(view.board);
+  refs.board.innerHTML = boardHTML(view.board, view.boardLit);
   refs.layer.innerHTML = layerHTML(view) + (ui.banner ? `<div class="banner">${ui.banner}</div>` : '')
     + (ui.flash ? `<div class="flash">${esc(ui.flash)}</div>` : ''); // 卓の移動のお知らせ（数秒）
   refs.side.innerHTML = sideHTML(view, ui.notices ?? []);
@@ -170,7 +182,7 @@ export function renderAll(refs, view, ui) {
   for (const b of refs.tabs.querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === ui.tab);
   if (view.hero) {
     refs.heroCards.className = `hero${view.hero.folded ? ' folded' : ''}`;
-    refs.heroCards.innerHTML = view.hero.hole.map((c) => cardHTML(c, 'xl')).join('');
+    refs.heroCards.innerHTML = view.hero.hole.map((c, k) => cardHTML(c, litClass('xl', view.hero.lit, k))).join('');
     refs.handInfo.innerHTML = `<b>${view.hero.folded ? '降りました' : view.hero.title}</b>${view.controls ? 'あなたの番です' : ''}`;
   } else {
     refs.heroCards.innerHTML = '';

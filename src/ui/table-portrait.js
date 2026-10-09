@@ -6,9 +6,10 @@ import { cardHTML, cardBackHTML } from './cards.js';
 import { fmt, esc } from './format.js';
 import { coachParts, coachStripHTML, examCoachHTML, examStripHTML, SHEET_TABS } from './coach-panel.js';
 import { dialStart } from './presets.js';
-import { initialOf, sideHTML } from './table-view.js';
+import { initialOf, sideHTML, litClass, boardHTML } from './table-view.js';
+import { winLabelHTML } from './result-banner.js';
 import { gridBodyHTML } from './range-grid.js';
-import { PT, PT_SEATS, PT_MARKS, PT_DEALERS } from './portrait-geometry.js';
+import { PT, PT_SEATS, PT_MARKS, PT_DEALERS, PT_WINS } from './portrait-geometry.js';
 
 const avatarSrc = (name) => `assets/avatars/${name}.webp`;
 const SEAT_H = PT.face + PT.plate.h - PT.plate.lift;
@@ -20,12 +21,12 @@ export function mountPortraitShell(stage) {
   <div class="pt-top"><button class="rb" data-ref="menu" aria-label="メニュー（やめて戻る）">☰</button><div class="pt-band"><div class="a" data-ref="band"></div><div class="b" data-ref="hudBody"></div><div class="c" data-ref="info"></div></div><button class="rb" data-ref="mute" aria-label="音（入／切）">🔊</button><button class="rb" data-ref="speed" aria-label="早送り">⏩</button></div>
   <div class="pt-table">
     <div class="pt-rail"><div class="pt-felt"><div class="flogo">やっしーGAMES<small>TEXAS HOLD'EM DOJO</small></div></div></div>
-    <div class="fboard" data-ref="board"></div>
+    <div class="fboard" data-ref="board" data-mv="center"></div>
     <div data-ref="layer"></div>
     <button class="stopbtn" data-ref="stop" hidden></button>
   </div>
   <div class="pt-strip" data-ref="strip"></div>
-  <div class="pane"><div class="hero" data-ref="heroCards"></div><div class="hand2" data-ref="handInfo"></div><div class="pt-amount" data-ref="dial"></div><div class="btnrow" data-ref="buttons"></div></div>
+  <div class="pane"><div class="hero" data-ref="heroCards" data-mv="cards-0"></div><div class="hand2" data-ref="handInfo"></div><div class="pt-amount" data-ref="dial"></div><div class="btnrow" data-ref="buttons"></div></div>
   <div class="pt-dim" data-ref="dim" hidden></div>
   <div class="pt-sheet" data-ref="sheet" hidden>
     <button class="pt-grip" data-sheet="close" aria-label="コーチの板を閉じる"></button>
@@ -54,11 +55,11 @@ function seatHTML(sv) {
   const [x, y] = PT_SEATS[sv.disp];
   const cls = ['seat', x > PT.w / 2 && 'rside', sv.isActor && 'actor', sv.folded && 'folded', sv.out && 'out', sv.won > 0 && 'win'].filter(Boolean).join(' ');
   const face = sv.avatar ? `<img src="${avatarSrc(sv.avatar)}" alt="${esc(sv.name)}">` : `<div class="initial">${esc(initialOf(sv.name))}</div>`;
-  const extra = sv.folded ? '<span class="fd">降り</span>' : sv.cards === 'back' ? `<span class="bks">${cardBackHTML()}${cardBackHTML()}</span>` : '';
+  const extra = sv.folded ? '<span class="fd">降り</span>' : sv.cards === 'back' ? `<span class="bks" data-mv="cards-${sv.disp}">${cardBackHTML()}${cardBackHTML()}</span>` : '';
   const sub = sv.out ? (sv.place ? `${sv.place}位` : '敗退') : esc(sv.name);
   return `<div class="${cls}" style="left:${x}px;top:${y}px">
-    <div class="frame">${face}${extra}</div>
-    <div class="plate"><b>${sv.out ? '―' : fmt(sv.stack)}</b>${sub}</div>
+    <div class="frame" data-mv="seat-${sv.disp}">${face}${extra}</div>
+    <div class="plate" data-mv="stack-${sv.disp}"><b>${sv.out ? '―' : fmt(sv.stack)}</b>${sub}</div>
     ${sv.badge ? `<span class="badge">${sv.badge}</span>` : ''}
   </div>`;
 }
@@ -77,26 +78,33 @@ export function ptLayerHTML(view, ui) {
   for (const sv of view.seats) {
     if (sv.empty) continue;
     const text = markText(sv);
-    if (text) html += `<div class="pmark" style="left:${PT_MARKS[sv.disp][0]}px;top:${PT_MARKS[sv.disp][1]}px">${text}</div>`;
+    if (text) html += `<div class="pmark" data-mv="bet-${sv.disp}" style="left:${PT_MARKS[sv.disp][0]}px;top:${PT_MARKS[sv.disp][1]}px">${text}</div>`;
     if (sv.disp === 0) continue; // あなたは手元に出す
     html += seatHTML(sv);
     // 勝負で見せた札：顔の上に2枚の扇（上は顔の上から lift だけ出す）
     if (sv.cards === 'up') {
       const [x, y] = PT_SEATS[sv.disp];
-      html += `<div class="shown${sv.won > 0 ? ' win' : ''}" style="left:${x}px;top:${y - SEAT_H / 2 - PT.shown.lift}px">${sv.hole.map((c) => cardHTML(c)).join('')}</div>`;
+      html += `<div class="shown${sv.won > 0 ? ' win' : ''}" data-mv="cards-${sv.disp}" style="left:${x}px;top:${y - SEAT_H / 2 - PT.shown.lift}px">${sv.hole.map((c, k) => cardHTML(c, litClass('', sv.lit, k))).join('')}</div>`;
     }
   }
-  if (view.buttonDisp !== null) html += `<div class="dealer" style="left:${PT_DEALERS[view.buttonDisp][0]}px;top:${PT_DEALERS[view.buttonDisp][1]}px">D</div>`;
+  // 勝負に勝った人の札：役の名前と勝った額を、席ごとに決めた所に（場の札・結果の帯・席・見せた札と重ならない。設計書 段階5-3 第4-1節）。
+  // 7字以上の役の名前（「ストレートフラッシュ」など）は小さめの字
+  for (const sv of view.seats) {
+    if (sv.empty || !(sv.won > 0) || !sv.handName) continue;
+    const [wx, wy] = PT_WINS[sv.disp];
+    html += `<div class="winpill${Array.from(sv.handName).length > 6 ? ' long' : ''}" style="left:${wx}px;top:${wy}px">${winLabelHTML(sv)}</div>`;
+  }
+  // あなたの持ち点の名札（ほかの人と同じ見た目。何BB分か。設計書 段階5-3 第4-3節）
+  const me = view.seats.find((sv) => sv.disp === 0);
+  if (me) {
+    const bb = Number((me.stack / view.hud.bb).toFixed(me.stack / view.hud.bb < 10 ? 1 : 0));
+    html += `<div class="plate pt-me${me.out ? ' out' : ''}" data-mv="stack-0" style="left:${PT.me.cx}px;top:${PT.me.cy}px"><b>${me.out ? '―' : fmt(me.stack)}</b>${me.out ? 'あなた' : `あなた・${bb}BB`}</div>`;
+  }
+  if (view.buttonDisp !== null) html += `<div class="dealer" data-mv="dealer" style="left:${PT_DEALERS[view.buttonDisp][0]}px;top:${PT_DEALERS[view.buttonDisp][1]}px">D</div>`;
   // ポットの額と結果の帯は同じ場所（結果の帯が出ている間はポットを出さない）
   if (ui.banner) html += `<div class="banner">${ui.banner}</div>`;
-  else if (view.pot > 0) html += `<div class="pt-pot">ポット ${fmt(view.pot)}</div>`;
+  else if (view.pot > 0) html += `<div class="pt-pot" data-mv="pot">ポット ${fmt(view.pot)}</div>`;
   if (ui.flash) html += `<div class="flash">${esc(ui.flash)}</div>`; // 卓の移動のお知らせ（数秒）
-  return html;
-}
-
-function boardHTML(board) {
-  let html = board.map((c) => cardHTML(c)).join('');
-  for (let k = board.length; k < 5; k++) html += '<div class="slot"></div>';
   return html;
 }
 
@@ -146,7 +154,7 @@ export function renderPortrait(refs, view, ui) {
   refs.hudBody.textContent = `レベル${h.level}　${fmt(h.sb)}/${fmt(h.bb)}　アンティ${fmt(h.ante)}`;
   refs.info.textContent = `残り ${h.alive}/${h.total}人・平均 ${fmt(h.avg)}・ハンド #${h.handNo}`;
   refs.speed.classList.toggle('on', ui.fast);
-  refs.board.innerHTML = boardHTML(view.board);
+  refs.board.innerHTML = boardHTML(view.board, view.boardLit);
   refs.layer.innerHTML = ptLayerHTML(view, ui);
   // コーチの帯と板
   const open = !refs.sheet.hidden;
@@ -169,7 +177,7 @@ export function renderPortrait(refs, view, ui) {
   }
   if (view.hero) {
     refs.heroCards.className = `hero${view.hero.folded ? ' folded' : ''}`;
-    refs.heroCards.innerHTML = view.hero.hole.map((x) => cardHTML(x)).join('');
+    refs.heroCards.innerHTML = view.hero.hole.map((x, k) => cardHTML(x, litClass('', view.hero.lit, k))).join('');
   } else {
     refs.heroCards.innerHTML = '';
   }
