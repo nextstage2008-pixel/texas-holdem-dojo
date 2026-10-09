@@ -1,0 +1,521 @@
+{
+ "people": {
+  "abe": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "aoki": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "endo": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "fujii": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "fujita": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "fujiwara": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "fukuda": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "goto": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "hasegawa": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "hashimoto": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "hayashi": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "ikeda": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "inoue": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "ishii": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "ishikawa": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "ito": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "kato": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "kimura": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "kobayashi": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "kondo": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "maeda": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "miura": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "mori": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "murakami": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "nakajima": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "nakamura": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "nishimura": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "nomura": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "ogawa": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "okada": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "ota": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "saito": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "sakamoto": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "sato": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "shimizu": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "suzuki": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "takahashi": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "tanaka": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "watanabe": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "yamada": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "yamamoto": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "yamashita": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "yamazaki": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  },
+  "yoshida": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2,
+   "bigwin": 2,
+   "bigloss": 2,
+   "bust": 2,
+   "champion": 2
+  }
+ },
+ "hero": {
+  "ritoS": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2
+  },
+  "rito": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2
+  },
+  "kenzaki": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2
+  },
+  "kurono": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2
+  },
+  "kurosawa": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2
+  },
+  "suzumatsu": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2
+  },
+  "kigashima": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2
+  },
+  "aru": {
+   "call": 2,
+   "bet": 2,
+   "raise": 2,
+   "allin": 2
+  }
+ },
+ "credits": [
+  "†聖騎士 紅桜†",
+  "あんこもん",
+  "ちび式じい",
+  "中部つるぎ",
+  "九州そら",
+  "冥鳴ひまり",
+  "剣崎雌雄",
+  "四国めたん",
+  "小夜/SAYO",
+  "春日部つむぎ",
+  "春歌ナナ",
+  "東北きりたん",
+  "東北ずん子",
+  "東北イタコ",
+  "波音リツ",
+  "猫使アル",
+  "猫使ビィ",
+  "玄野武宏",
+  "琴詠ニア",
+  "白上虎太郎",
+  "雀松朱司",
+  "離途",
+  "雨晴はう",
+  "麒ヶ島宗麟",
+  "黒沢冴白"
+ ]
+}

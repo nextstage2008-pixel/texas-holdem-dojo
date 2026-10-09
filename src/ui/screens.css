@@ -1,0 +1,343 @@
+/* 段階3の画面（起動演出・タイトル・名前・道場・講義・問題・結果・設定・成績）。確定見本 mock-title-v14.html・mock-dojo-v1.html */
+@font-face{font-family:'DelaLogo';src:url('../../assets/fonts/dela-gothic-one-logo.woff2') format('woff2');font-display:block}
+
+/* 画面の枠（羊皮紙＋金の縁） */
+.scr{position:relative;width:1300px;height:880px;border-radius:18px;overflow:hidden;color:#2b2118;
+  background:radial-gradient(ellipse at 40% 25%,rgba(255,250,236,.95),rgba(255,250,236,0) 60%),
+    radial-gradient(circle at 14px 14px,rgba(130,98,58,.10) 0 5px,transparent 6px) 0 0/28px 28px,linear-gradient(#f1e6cf,#cdb894);
+  box-shadow:inset 0 0 0 5px #2a1a0f,inset 0 0 0 6px #d6b25a,inset 0 0 140px rgba(90,60,25,.38)}
+.scr button{font-family:inherit}
+
+/* 起動演出 */
+.splash{display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+  background:radial-gradient(ellipse at 50% 50%,#3a2614 0%,#140b05 55%,#050302 100%)}
+.splash .slogo{width:250px;height:250px;filter:drop-shadow(0 0 26px rgba(255,190,90,.45));animation:logoPop 1.8s cubic-bezier(.2,.7,.2,1) .2s both}
+.splash .sname{margin-top:8px;font:800 19px "Yu Gothic UI","Segoe UI",sans-serif;letter-spacing:.32em;color:#ffe9a6;animation:fadeIn 1s ease 1s both}
+.splash .line{margin-top:14px;height:1px;width:0;background:linear-gradient(90deg,transparent,#d6b25a,transparent);animation:grow 1.2s ease .9s forwards}
+.splash .pr{margin-top:16px;font:700 12px Georgia,serif;letter-spacing:.8em;color:#cdb27a;animation:fadeIn 1.2s ease 1.2s both}
+@keyframes logoPop{0%{opacity:0;transform:scale(.55)}60%{opacity:1;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes grow{to{width:360px}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+
+/* タイトル */
+.ts{animation:fadeIn .6s ease both}
+.ts-grid{position:absolute;inset:0;display:grid;grid-template-columns:1.4fr 1fr;align-items:center;padding:36px 60px 50px}
+.ts-left{position:relative;text-align:center}
+.tlogo{width:170px;height:170px;display:block;margin:0 auto -6px;filter:drop-shadow(0 8px 14px rgba(60,40,15,.35))}
+.ts .brand{font:800 14px "Yu Gothic UI","Segoe UI",sans-serif;letter-spacing:.38em;color:#8a6a2a;text-align:center}
+.lgA{display:block;width:440px;height:216px;margin:4px auto 0;overflow:visible;filter:drop-shadow(0 6px 10px rgba(60,40,15,.25))}
+.fan{position:relative;height:170px;margin-top:-2px}
+.tcard{position:absolute;left:50%;top:18px;margin-left:-30px;transform-origin:50% 140%;transform:rotate(var(--r));animation:deal .55s cubic-bezier(.2,.8,.2,1) both}
+.tcard .cd{width:76px;height:106px}
+@keyframes deal{from{opacity:0;transform:translateY(90px) rotate(0deg) scale(.7)}to{opacity:1;transform:rotate(var(--r))}}
+.fan .cstack{position:absolute;transform:translate(-50%,-100%);line-height:0}
+.cast{text-align:center;animation:fadeUp .6s ease .8s both}
+.cast-lab{font:700 12px "Yu Mincho",serif;letter-spacing:.3em;color:#8a6a2a;margin-bottom:6px}
+.cast-row{display:flex;justify-content:center;gap:8px}
+.cv{width:52px;height:52px;border-radius:50%;padding:2.5px;background:conic-gradient(from 200deg,#8a6418,#ffe9a6,#b8862b,#fff3c9,#8a6418);
+  box-shadow:0 0 0 1.5px #2a1a0f,0 4px 8px rgba(60,40,15,.35);animation:pop .4s cubic-bezier(.2,.9,.3,1.3) both}
+.cv img{display:block;width:47px;height:47px;border-radius:50%;object-fit:cover;object-position:50% 18%}
+.menu{border-radius:18px;padding:20px 22px 22px;color:#f3e6c8;position:relative;animation:fadeUp .6s ease .3s both;
+  background:linear-gradient(180deg,#8a5a34 0%,#5e3a1f 40%,#45290f 100%);
+  box-shadow:0 0 0 1px #2a1a0f,0 0 0 4px #d6b25a,0 0 0 5px #6b4a12,0 18px 36px rgba(60,40,15,.45),inset 0 1px 0 rgba(255,230,190,.25)}
+.menu::after,.det::after,.nm-card::after{content:"";position:absolute;inset:8px;border-radius:12px;border:1.5px dashed rgba(240,212,136,.5);pointer-events:none}
+.who{display:flex;align-items:center;gap:12px;padding:4px 6px 14px;border-bottom:1px solid rgba(240,212,136,.35);margin-bottom:14px}
+.medal{width:46px;height:46px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:800 12px Georgia,"Yu Mincho",serif;color:#3a2606;flex:none;
+  background:radial-gradient(circle at 35% 30%,#fff6cf,#e9c463 55%,#9c7225);box-shadow:0 0 0 2px #3a2606,0 0 0 3px #f0d488,0 4px 8px rgba(0,0,0,.4)}
+.who b{display:block;font:700 16px "Yu Mincho",serif;color:#ffe9a6}
+.who small{font-size:11.5px;color:#e8d6b0}
+.prog{height:6px;border-radius:3px;background:rgba(0,0,0,.35);margin-top:5px;overflow:hidden;width:220px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,#c99a3c,#ffe08a)}
+.hav{position:relative;width:64px;height:64px;border-radius:50%;padding:3px;flex:none;background:conic-gradient(from 200deg,#8a6418,#ffe9a6,#b8862b,#fff3c9,#8a6418);box-shadow:0 0 0 2px #2a1a0f,0 0 14px rgba(255,214,120,.6)}
+.hav img{display:block;width:58px;height:58px;border-radius:50%;object-fit:cover;object-position:50% 18%}
+.hav .medal{position:absolute;right:-12px;bottom:-6px;width:32px;height:32px;font-size:10px}
+.menu .mb{display:flex;width:100%;justify-content:space-between;align-items:center;margin:0 0 11px;padding:12px 16px;font-size:15px;text-align:left}
+.menu .mb small{font-size:11px;font-weight:600;opacity:.85}
+.mb.p{color:#3a2606;background:linear-gradient(#ffe794,#cf9c30);border:1px solid #7d5a12}
+.menu .mb.p{padding:16px 18px;font-size:18px}
+.mb.s{color:#f6ead0;background:linear-gradient(#3a2618,#1d1108);border:1px solid #d6b25a;box-shadow:inset 0 1px 0 rgba(255,233,166,.25),0 4px 0 #0d0703,0 8px 12px rgba(0,0,0,.35)}
+.mb.off{opacity:.6}
+.mb.danger,.nb.danger{color:#fff;background:linear-gradient(#d65a4f,#9e2a22);border:1px solid #6e1a14}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mrow .mb{margin-bottom:0}
+.badge-r{font-style:normal;font-size:11px;background:#c0392b;color:#fff;border-radius:10px;padding:1px 8px;margin-left:6px}
+.ts .ver{position:absolute;right:24px;bottom:16px;font-size:11px;color:#7a6850}
+.ts .ts-hint{position:absolute;left:60px;bottom:16px;font-size:11.5px;color:#7a6850}
+/* 新しい版の知らせ（公開版のタイトルの画面だけ。設計書 段階5-2 第3-4節） */
+.ts-update{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:3;min-height:44px;padding:0 20px;border-radius:22px;border:1px solid #1d8649;background:#effbf2;color:#14593a;font:800 14px "Yu Gothic UI","Segoe UI",sans-serif;cursor:pointer;box-shadow:0 3px 8px rgba(60,40,15,.25)}
+
+/* 名前の入力・確認の札 */
+.ov-dim{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(30,18,8,.5)}
+.nm-card{position:relative;width:480px;border-radius:18px;padding:26px 30px 28px;text-align:center;color:#f3e6c8;
+  background:linear-gradient(180deg,#8a5a34 0%,#5e3a1f 40%,#45290f 100%);box-shadow:0 0 0 1px #2a1a0f,0 0 0 4px #d6b25a,0 0 0 5px #6b4a12,0 18px 36px rgba(0,0,0,.5)}
+.nm-card h3{margin:4px 0 8px;font:800 22px "Yu Mincho",serif;color:#ffe9a6;letter-spacing:.12em}
+.nm-card p{margin:0 0 14px;font-size:13px;color:#e8d6b0;line-height:1.7}
+.nm-in{width:280px;padding:12px 14px;border-radius:10px;border:2px solid #d6b25a;background:#fffaf0;color:#2b2118;font:700 20px "Yu Gothic UI","Segoe UI",sans-serif;position:relative;z-index:1}
+.nm-err{min-height:18px;margin-top:6px;font-size:12.5px;font-weight:700;color:#ffb4a8}
+.nm-cnt{font-size:11px;color:#e8d6b0}
+.nm-btns{display:flex;gap:12px;justify-content:center;margin-top:16px;position:relative;z-index:1}
+.nm-btns .mb{margin:0}
+.dlg{width:560px}
+.dlg-b{position:relative;z-index:1;font-size:13.5px;line-height:1.7;color:#f3e6c8}
+.dlg-b .fg-tb{margin:6px auto 10px;background:#fffaf0;color:#2b2118}
+
+/* 画面の上の帯 */
+.sbar{position:absolute;left:6px;right:6px;top:6px;height:62px;display:flex;align-items:center;gap:14px;padding:0 22px;z-index:2;
+  background:linear-gradient(#3a2618,#1d1108);border-bottom:2px solid #d6b25a;color:#f3e6c8;border-radius:12px 12px 0 0}
+.back{cursor:pointer;font-weight:800;font-size:13px;color:#ffe9a6;background:none;border:1px solid #d6b25a;border-radius:9px;padding:7px 13px}
+.sbar h4{margin:0;font:800 21px "Yu Mincho",serif;letter-spacing:.2em;color:#ffe9a6}
+.sbar .sp{flex:1}
+.sbar .medal{width:40px;height:40px;font-size:11px}
+.sbar .who{display:inline;border:0;margin:0;padding:0;font:700 15px "Yu Mincho",serif;color:#ffe9a6}
+.rev{cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;color:#3a2606;padding:8px 14px;border-radius:10px;background:linear-gradient(#ffe794,#cf9c30);border:1px solid #7d5a12;box-shadow:0 3px 0 #7d5a12}
+.rev em{font-style:normal;background:#c0392b;color:#fff;border-radius:10px;padding:1px 8px;font-size:12px}
+.rev:disabled{opacity:.55;cursor:default}
+
+/* 道場 */
+.dj-body{position:absolute;left:6px;right:6px;top:70px;bottom:6px;display:grid;grid-template-columns:1.2fr 1fr;gap:24px;padding:20px 28px}
+.chs{display:flex;flex-direction:column;gap:9px}
+.ch{display:grid;grid-template-columns:46px 1fr 140px 110px;align-items:center;gap:12px;height:62px;padding:0 14px;border-radius:11px;
+  background:linear-gradient(#fffaf0,#f1e4c8);border:1px solid #c9ab76;box-shadow:0 2px 4px rgba(60,40,15,.18)}
+.ch.click{cursor:pointer}
+@media (hover:hover){.ch.click:hover{filter:brightness(1.03)}}
+.seal{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font:900 16px "Yu Mincho",serif;color:#fff6dc;background:linear-gradient(#d9483a,#9e2a20);box-shadow:0 0 0 1.5px #2a1608}
+.ch .tt{font:800 15px "Yu Gothic UI",sans-serif}
+.ch .tt small{display:block;font-weight:500;font-size:11.5px;color:#7a6850}
+.steps{display:flex;gap:6px}
+.st{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-style:normal;border:1.5px solid #b89a63;color:#9a8460;background:#fbf4e4}
+.st.ok{background:radial-gradient(circle at 35% 30%,#fff6cf,#e9c463 55%,#b8862b);color:#3a2606;border-color:#7d5a12}
+.st.now{border-color:#c0392b;color:#c0392b;background:#fff;box-shadow:0 0 0 3px rgba(192,57,43,.18)}
+.stt{font:800 12.5px "Yu Gothic UI",sans-serif;text-align:center;border-radius:8px;padding:5px 0}
+.stt.passed{color:#b8322a;border:2px solid #b8322a;transform:rotate(-6deg);font-family:"Yu Mincho",serif;font-size:15px;letter-spacing:.2em}
+.stt.doing{color:#fff;background:#2f7a4a}
+.stt.locked,.stt.soon{color:#7a6850;background:rgba(0,0,0,.06)}
+.ch.sel{border:2px solid #c0392b;box-shadow:0 0 0 3px rgba(192,57,43,.15),0 4px 10px rgba(60,40,15,.25)}
+.ch.off{opacity:.5;filter:grayscale(.7)}
+.ch.off .seal{background:#8a7a64}
+.det{border-radius:16px;padding:20px 22px;color:#f3e6c8;position:relative;align-self:start;
+  background:linear-gradient(180deg,#8a5a34 0%,#5e3a1f 40%,#45290f 100%);box-shadow:0 0 0 1px #2a1a0f,0 0 0 4px #d6b25a,0 0 0 5px #6b4a12,0 14px 30px rgba(60,40,15,.45)}
+.det h5{margin:2px 0 6px;font:800 22px "Yu Mincho",serif;color:#ffe9a6;letter-spacing:.06em}
+.det p{margin:0 0 14px;font-size:13px;line-height:1.7;color:#e8d6b0}
+.det .row{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:10px;padding:12px 14px;margin-bottom:10px;border-radius:10px;background:rgba(0,0,0,.25);border:1px solid rgba(240,212,136,.3);position:relative;z-index:1}
+.det .row.open,.det .row.ok{cursor:pointer}
+.det .row .n{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;background:#f3e6c8;color:#3a2606}
+.det .row.ok .n{background:radial-gradient(circle at 35% 30%,#fff6cf,#e9c463 55%,#b8862b)}
+.det .row b{font-size:15px;color:#fff3d6}
+.det .row small{display:block;font-size:11.5px;color:#d9c49a}
+.det .row .r{font-size:12.5px;font-weight:800;color:#ffe08a}
+.det .row.locked{opacity:.55}
+.go{display:block;width:100%;cursor:pointer;text-align:center;margin-top:14px;padding:15px;border-radius:11px;font-weight:800;font-size:17px;color:#3a2606;position:relative;z-index:1;
+  background:linear-gradient(#ffe794,#cf9c30);border:1px solid #7d5a12;box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 5px 0 #7d5a12,0 9px 14px rgba(0,0,0,.4)}
+
+/* 講義 */
+.book{position:absolute;left:56px;right:56px;top:96px;bottom:92px;border-radius:12px;display:grid;grid-template-columns:1fr 1fr;
+  background:linear-gradient(90deg,#fffaf0 0%,#f8efdc 48%,#e9dcc0 50%,#f8efdc 52%,#fffaf0 100%);
+  box-shadow:0 0 0 1px #b89a63,0 0 0 6px #5a341b,0 0 0 7px #d6b25a,0 18px 34px rgba(60,40,15,.45)}
+.pg{padding:34px 44px;position:relative;overflow:hidden}
+.book .pg:first-child{display:flex;flex-direction:column;justify-content:center;padding:28px 30px}
+.pg h6{margin:0 0 6px;font:700 13px "Yu Gothic UI",sans-serif;color:#8a6a2a;letter-spacing:.2em}
+.pg h3{margin:0 0 20px;font:800 32px "Yu Mincho",serif;color:#2b2118}
+.txt p{margin:0 0 6px;font-size:18px;line-height:1.9}
+.key{margin-top:22px;padding:14px 16px;border-radius:10px;border:2px solid #c0392b;background:#fff6ef;font-size:16px;line-height:1.8}
+.key strong{display:inline-block;background:#c0392b;color:#fff;border-radius:6px;padding:1px 8px;font-size:12px;margin-right:8px}
+.sum{margin:0;padding-left:26px;font-size:18px;line-height:1.9}
+.sum li{margin-bottom:10px}
+.nav{position:absolute;left:0;right:0;bottom:24px;display:flex;align-items:center;justify-content:center;gap:24px}
+.nb{cursor:pointer;font-weight:800;font-size:15px;padding:10px 22px;border-radius:10px;color:#f6ead0;background:linear-gradient(#3a2618,#1d1108);border:1px solid #d6b25a;box-shadow:0 4px 0 #0d0703}
+.nb.p{color:#3a2606;background:linear-gradient(#ffe794,#cf9c30);border-color:#7d5a12;box-shadow:0 4px 0 #7d5a12}
+.nb:disabled{opacity:.4;cursor:default}
+.dots{display:flex;gap:8px}
+.dots i{width:11px;height:11px;border-radius:50%;background:#b89a63}
+.dots i.on{background:#c0392b;box-shadow:0 0 0 3px rgba(192,57,43,.2)}
+
+/* 講義の図 */
+.fig{display:flex;flex-direction:column;gap:14px;border-radius:14px;padding:22px 20px;color:#fff;
+  background:radial-gradient(ellipse at 50% 30%,#3f8a5a,#25603c 75%);box-shadow:inset 0 0 0 4px #5a341b,inset 0 0 0 6px #d6b25a,inset 0 0 40px rgba(0,0,0,.35)}
+.fg-row{display:grid;grid-template-columns:140px 1fr auto;align-items:center;gap:10px}
+.fg-lab{font:800 13px "Yu Gothic UI",sans-serif;color:#ffe9a6;white-space:nowrap}
+.fg-cards{display:flex;gap:5px;align-items:center}
+.fig .fg-cards .cd{width:52px;height:73px}
+.mcard{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:34px;height:46px;border-radius:5px;line-height:1;
+  background:linear-gradient(155deg,#fff,#efe9dc);box-shadow:0 0 0 1px rgba(0,0,0,.15),0 2px 3px rgba(0,0,0,.35);font:700 15px Georgia,serif;color:#15151a}
+.mcard i{font-style:normal;font-size:15px;margin-top:2px}
+.mcard.r{color:#c6232f}
+.fg-cards .gap{width:12px}
+.fg-note{font-size:12px;color:#e8f5ea;white-space:nowrap}
+.fg-tb{border-collapse:collapse;width:100%;font-size:13.5px;background:rgba(255,250,240,.95);color:#2b2118;border-radius:8px;overflow:hidden}
+.fg-tb th{background:#5a2f17;color:#ffe9a6;font-weight:700;padding:6px 8px;text-align:left}
+.fg-tb td{padding:6px 8px;border-bottom:1px solid #e3d6bb}
+.fg-eq{padding:12px;border-radius:10px;background:rgba(0,0,0,.3);font:700 16px "Yu Gothic UI",sans-serif;text-align:center}
+.fg-eq b{color:#ffe08a;font-size:26px;margin-left:6px}
+.fg-bar{position:relative;height:18px;border-radius:9px;margin:0 4px;background:linear-gradient(90deg,#c0392b 0 var(--m),#2f9a5a var(--m) 100%);box-shadow:inset 0 0 0 2px rgba(0,0,0,.3)}
+.fg-bar i{position:absolute;left:var(--m);top:-6px;bottom:-6px;width:3px;background:#fff}
+.fg-barl{display:flex;justify-content:space-between;font-size:11px;color:#e8f5ea;padding:0 4px;margin-top:-8px}
+.fg-gauge{text-align:center}
+.fg-gauge small{display:block;font-size:12px;color:#e8f5ea}
+.fg-chips{display:flex;justify-content:center;gap:34px;align-items:flex-end}
+.fg-stk{display:flex;flex-direction:column;align-items:center}
+.fg-stk span{margin-top:6px;font-size:13px;font-weight:700;color:#ffe9a6;text-align:center}
+.fg-stk span b{display:block;font-size:19px;color:#fff}
+.fg-ring{position:relative;height:320px}
+.fg-felt{position:absolute;left:18%;right:18%;top:22%;bottom:22%;border-radius:999px;background:rgba(0,0,0,.18);border:2px solid rgba(255,229,160,.4);
+  display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;color:#e8f5ea}
+.fg-seat{position:absolute;transform:translate(-50%,-50%);min-width:66px;text-align:center;padding:5px 8px;border-radius:9px;background:linear-gradient(#3a2618,#160c06);border:1px solid #d6b25a;color:#ffe9a6}
+.fg-seat b{display:block;font-size:14px}
+.fg-seat small{font-size:11px;color:#f3e6c8}
+.fg-seat.btn{background:linear-gradient(#ffe794,#cf9c30);color:#3a2606}
+.fg-seat.btn small{color:#3a2606}
+.fg-big{font:800 22px/1.6 "Yu Mincho",serif;color:#fff6dc;text-align:center;padding:60px 12px}
+
+/* 練習問題・試験 */
+.qz{position:absolute;left:6px;right:6px;top:70px;bottom:6px;display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:24px 32px}
+.qz .qfelt{position:relative;border-radius:130px;background:radial-gradient(ellipse at 50% 40%,#3f8a5a,#25603c 70%,#1d4e31);
+  box-shadow:0 0 0 10px #6b4220,0 0 0 12px #d6b25a,0 0 0 20px #3a2213,0 16px 30px rgba(0,0,0,.45);margin:30px 22px 0;min-height:300px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;padding:24px}
+.qz .cards{display:flex;gap:8px}
+.qz .pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.qz .pot{font:800 13.5px "Yu Gothic UI",sans-serif;background:rgba(0,0,0,.35);border-radius:20px;padding:4px 14px;color:#ffe9a6}
+.qz .others{display:flex;gap:24px}
+.qz .other{display:flex;align-items:center;gap:5px}
+.qz .other .lab{font:900 18px Georgia,serif;color:#ffe9a6;margin-right:4px}
+.qz .mine{margin-top:26px;display:flex;align-items:center;justify-content:center;gap:16px}
+.qz .mine .lab{font:800 14px "Yu Gothic UI",sans-serif;color:#5a4026}
+.qz .mine .cd{width:68px;height:95px}
+.qh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.qno{font:800 13px "Yu Gothic UI",sans-serif;background:#5a2f17;color:#ffe9a6;border-radius:20px;padding:3px 12px}
+.qbar{flex:1;height:8px;border-radius:4px;background:rgba(0,0,0,.15);overflow:hidden}
+.qbar i{display:block;height:100%;background:linear-gradient(90deg,#c99a3c,#ffe08a)}
+.qh .cnt{font-weight:800;font-size:13px;color:#5a4026}
+.q{font:800 21px "Yu Gothic UI",sans-serif;line-height:1.55;margin:8px 0 16px}
+.chs2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chs2.five{grid-template-columns:1fr 1fr 1fr}
+.chs2.long{grid-template-columns:1fr}
+.op{cursor:pointer;padding:14px;border-radius:11px;text-align:center;font-weight:800;font-size:18px;color:#f6ead0;background:linear-gradient(#3a2618,#1d1108);border:1px solid #d6b25a;box-shadow:0 4px 0 #0d0703}
+.chs2.long .op{font-size:15px;text-align:left;padding:12px 16px}
+.op:disabled{cursor:default}
+.op.right{color:#fff;background:linear-gradient(#3cae6a,#22804a);border-color:#155c33;box-shadow:0 4px 0 #155c33}
+.op.wrong{color:#fff;background:linear-gradient(#d65a4f,#9e2a22);border-color:#6e1a14;box-shadow:0 4px 0 #6e1a14}
+.op.dim{opacity:.45}
+.fb{margin-top:16px;border-radius:12px;padding:14px 18px;background:#fffaf0;border:2px solid #2f9a5a;box-shadow:0 4px 10px rgba(60,40,15,.2)}
+.fb.ng{border-color:#c0392b}
+.fb h4{margin:0 0 6px;font:900 19px "Yu Gothic UI",sans-serif;color:#22804a}
+.fb.ng h4{color:#b8322a}
+.fb p{margin:0 0 4px;font-size:14px;line-height:1.7}
+.fb .calc{margin-top:6px;font:700 13.5px Consolas,"Yu Gothic UI",monospace;background:#f3ead6;border-radius:8px;padding:6px 10px}
+.fb .memo{margin-top:8px;font-size:12px;color:#b8322a;font-weight:700}
+.fb .nxr{display:flex;justify-content:flex-end;margin-top:10px}
+.fb .nx{cursor:pointer;font-weight:800;font-size:15px;padding:9px 20px;border-radius:10px;color:#3a2606;background:linear-gradient(#ffe794,#cf9c30);border:1px solid #7d5a12;box-shadow:0 3px 0 #7d5a12}
+
+/* 章末試験の結果 */
+.res{position:absolute;left:6px;right:6px;top:70px;bottom:6px;display:grid;grid-template-columns:1.1fr 1fr;gap:28px;padding:30px 40px}
+.score{text-align:center;padding-top:20px}
+.stamp{display:inline-block;font:900 70px "Yu Mincho",serif;color:#c0392b;border:6px double #c0392b;border-radius:14px;padding:4px 30px;transform:rotate(-8deg);letter-spacing:.2em;background:rgba(255,255,255,.35)}
+.stamp.ng{color:#7a6850;border-color:#7a6850;font-size:52px}
+.pts{margin-top:22px;font:800 22px "Yu Gothic UI",sans-serif}
+.pts b{font-size:48px;color:#2b2118}
+.pts small{display:block;font-size:13px;font-weight:600;color:#7a6850;margin-top:4px}
+.up{margin-top:22px;display:flex;align-items:center;justify-content:center;gap:16px}
+.up .medal{width:72px;height:72px;font-size:18px}
+.up .ar{font-size:30px;color:#b8862b}
+.up .big{width:96px;height:96px;font-size:24px;box-shadow:0 0 0 3px #3a2606,0 0 0 5px #f0d488,0 0 30px rgba(255,214,120,.9)}
+.opn{margin-top:18px;display:inline-block;font-weight:800;font-size:15px;color:#2f7a4a;background:#e9f6ec;border:1px solid #9fd0ad;border-radius:20px;padding:6px 18px}
+.miss h5{font-size:18px}
+.mis{max-height:520px;overflow:auto;position:relative;z-index:1}
+.mi{padding:10px 12px;margin-bottom:8px;border-radius:10px;background:rgba(0,0,0,.25);border:1px solid rgba(240,212,136,.3);font-size:13px;line-height:1.6}
+.mi b{color:#ffb4a8}
+.mi span{color:#a6e3b7}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;position:relative;z-index:1}
+
+/* 設定・成績 */
+.st-body{position:absolute;left:6px;right:6px;top:70px;bottom:6px;display:flex;flex-direction:column;gap:24px;padding:30px 120px}
+.st-body > .det{align-self:stretch}
+.st-body.two{display:grid;grid-template-columns:1.2fr 1fr;padding:30px 40px;align-items:start}
+.st-row{display:flex;align-items:center;gap:18px;position:relative;z-index:1}
+.st-name{font:800 26px "Yu Mincho",serif;color:#ffe9a6}
+.st-btns{display:flex;gap:12px;position:relative;z-index:1}
+.st-col{display:flex;flex-direction:column;gap:24px}
+.st-col > .det{align-self:stretch}
+.st-body.two > .det.snd{align-self:start}
+/* このゲームについて（段階5-2） */
+.st-body.about{overflow:auto}
+.about-cr{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 10px;font-size:13px;line-height:1.6;position:relative;z-index:1}
+.about-cr dt{font-weight:800;color:#ffe9a6}
+.about-cr dd{margin:0;color:#f3e6c8}
+/* 設定の「音」の欄（段階4-5） */
+.snd-grid{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;align-items:center;position:relative;z-index:1;font-size:14px}
+.snd-grid > span{font-weight:700;color:#f3e6c8}
+.snd-ctl{display:flex;align-items:center;gap:8px}
+.tg{cursor:pointer;min-width:58px;padding:6px 12px;border-radius:9px;font-family:inherit;font-weight:800;font-size:14px;color:#f6ead0;background:linear-gradient(#3a2618,#1d1108);border:1px solid #d6b25a}
+.tg.on{color:#3a2606;background:linear-gradient(#ffe794,#cf9c30);border-color:#7d5a12}
+.snd-ctl input[type=range]{width:190px;accent-color:#e9c463}
+.snd-ctl b{min-width:30px;color:#ffe08a}
+.snd-ctl select{font-family:inherit;font-weight:700;font-size:14px;padding:6px 8px;border-radius:8px;color:#2b2118;background:#fffaf0;border:1px solid #d6b25a}
+.snd-ctl .nb{padding:7px 14px;font-size:13px}
+.credit{position:relative;z-index:1;margin:16px 0 0;font-size:11px;line-height:1.65;color:#d9c49a}
+.warn{color:#ffb4a8}
+.det.light{background:linear-gradient(#fffcf4,#f4e8cf);color:#2b2118}
+.det.light h5{color:#5a2f17}
+.det.light p{color:#4a3a28}
+.det.light::after{border-color:rgba(138,100,24,.35)}
+.det .fg-tb{position:relative;z-index:1}
+.small{font-size:12px}
+
+/* 卓の「やめて判定する」 */
+.stopbtn{position:absolute;right:14px;top:122px;z-index:8;cursor:pointer;font:800 13px "Yu Gothic UI",sans-serif;color:#3a2606;padding:8px 14px;border-radius:10px;
+  background:linear-gradient(#ffe794,#cf9c30);border:1px solid #7d5a12;box-shadow:0 3px 0 #7d5a12,0 6px 10px rgba(0,0,0,.3)}
+.ov-card h1.pass{color:#ffe08a;font-size:40px;letter-spacing:.3em}
+
+/* 講義の図：1万回やり直す（第8章） */
+.fg-rp{display:grid;gap:5px;margin:4px 0 8px;text-align:left}
+.fg-rp b{font-size:13px}
+.fg-rp small{font-size:11.5px;color:#f1e4c4}
+.fg-rp .rp-bar{height:18px;border-radius:9px}
+.fg-rpsvg{margin:6px 0;text-align:center}
+.fg-rpsvg .rp-svg{margin:0 auto}
+.fg-rpsvg small{display:block;margin-top:4px;font-size:11px;color:#f1e4c4}
+
+/* 成績と統計（段階4-2・見本 mock-stats-v1.html の案A） */
+.st-tabs{position:absolute;left:30px;top:82px;display:flex;gap:8px;z-index:1}
+.st-tab{padding:9px 20px;border:0;border-radius:12px 12px 0 0;background:#d8c49b;color:#5a2f17;font:800 15px "Yu Mincho",serif;cursor:pointer}
+.st-tab.on{background:linear-gradient(#5a2f17,#3b2416);color:#ffe9a6}
+.st-tabbody{position:absolute;left:30px;right:30px;top:122px;bottom:26px;display:grid;gap:18px;align-items:start}
+.st-tabbody > .det{align-self:start}
+.st-tabbody.one{grid-template-columns:1fr;align-content:start}
+.st-tabbody.one > .det{align-self:start}
+.st-tabbody.q{grid-template-columns:1.45fr 1fr}
+.st-tabbody.luck{grid-template-columns:1.55fr 1fr;grid-template-rows:auto auto;align-content:start}
+.st-tabbody.luck .chart{grid-row:1/3;align-self:stretch}
+.st-tabbody .small{font-size:12.5px;line-height:1.6;margin:8px 0 0;position:relative;z-index:1}
+.det.light .small{color:#6a5236}
+.st-chart{display:block;position:relative;z-index:1}
+.st-legend{display:flex;gap:16px;font-size:12.5px;margin-top:6px;color:#4a3a28;position:relative;z-index:1}
+.st-legend i{display:inline-block;width:22px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.st-legend i.a{background:#c79a2c}.st-legend i.e{background:#2f8a52}
+.st-nums{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:baseline;position:relative;z-index:1}
+.st-nums .big{font:800 30px Georgia,"Yu Mincho",serif;color:#ffe08a}
+.st-nums .big.g{color:#9be0b2}.st-nums .big.s{font-size:24px}
+.pill{display:inline-block;padding:3px 10px;border-radius:12px;font:800 12px "Yu Gothic",sans-serif;vertical-align:3px}
+.pill.luck{background:#fdebd3;color:#a0521b}.pill.skill{background:#dcefe0;color:#22663d}
+.st-ci{position:relative;height:30px;margin:8px 0 2px;background:linear-gradient(90deg,#f3dcc2,#f7efe2 50%,#dcefe0);border-radius:6px;z-index:1}
+.st-ci .z{position:absolute;left:50%;top:-4px;bottom:-4px;width:2px;background:#5a2f17}
+.st-ci .bar{position:absolute;top:9px;height:12px;border-radius:6px;background:#c79a2c}
+.st-ci .dot{position:absolute;top:5px;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:#5a2f17;border:3px solid #ffe9a6;box-sizing:border-box}
+.st-cil{display:flex;justify-content:space-between;font-size:11.5px;color:#6a5236;position:relative;z-index:1}
+.st-scroll{max-height:620px;overflow:auto;position:relative;z-index:1;border-radius:8px}
+.st-scroll .fg-tb{overflow:visible}
+.st-scroll .fg-tb th{position:sticky;top:0;z-index:1}
+.st-leak{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-radius:10px;background:rgba(0,0,0,.05);margin-bottom:8px;position:relative;z-index:1}
+.st-leak .n{width:28px;height:28px;border-radius:50%;background:#c0392b;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+.st-leak b{font-size:14.5px}
+.st-leak small{display:block;color:#6a5236;font-size:12px}
+.st-leak .go{border:0;border-radius:8px;padding:7px 12px;font-weight:800;color:#3a2606;background:linear-gradient(#ffe9a6,#e2b64a);cursor:pointer}
+.st-leak .go:disabled{cursor:default;opacity:.6}
+/* 成績画面：段位の欄・最終試験の行（段階4-4） */
+.st-tabbody.q{align-content:start}
+.st-tabbody.q > .det.dan{grid-column:1/-1}
+.dan-bar{display:grid;grid-template-columns:90px 1fr 250px;gap:12px;align-items:center;margin:6px 0;font-size:14px;position:relative;z-index:1}
+.dan-bar .track{position:relative;height:14px;background:#efe3c9;border-radius:7px;display:block}
+.dan-bar .track i{position:absolute;left:0;top:0;bottom:0;background:#c79a2c;border-radius:7px}
+.dan-bar .track em{position:absolute;top:-4px;bottom:-4px;width:2px;background:#c0392b}
+.dan-bar b{font-size:17px}
+.st-exam{background:#fff3cf;border:1px solid #c79a2c;border-radius:10px;padding:6px 10px;margin:0 0 8px;position:relative;z-index:1}
