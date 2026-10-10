@@ -1,17 +1,30 @@
-// ハンドの結果の文（設計書 段階5-3 第4節）。画面に触れない（HTML の文字を返すだけ）。
+// ハンドの結果の文（設計書 段階5-3 第4節・段階5-5 第2節）。画面に触れない（HTML の文字を返すだけ）。
 import { fmt, esc } from './format.js';
+import { cardHTML } from './cards.js';
 import { HERO_SEAT } from '../game/session.js';
 
-// 結果の帯。result：view-model の result（{ showdown, winners: [{ seat, name, amount, hand }] }）。
-// 勝負：人ごとに「名前　役　+額」。勝負にならなかった：「ほかの全員が降りたので　〇〇さんが取りました　+額（札は見せません）」
-export function resultBannerHTML(result) {
+const NEXT = { hand: '次のハンドへ ▶', end: '結果へ ▶' };
+const MANY = 4; // この人数から、人ごとは名前と額だけの小さな行にする
+const whoOf = (w) => (w.seat === HERO_SEAT ? 'あなた' : `${esc(w.name)}さん`);
+
+// 手元の結果の札の中身（段階5-5）。result：view-model の result（{ showdown, winners: [{ seat, name, amount, hand, detail, cards }] }）。
+// next：下のボタン 'hand'（次のハンドへ）・'end'（結果へ。大会がこのハンドで終わる）・null（出さない＝チュートリアル）
+export function resultPanelHTML(result, { next = 'hand' } = {}) {
   if (!result) return '';
+  const ws = result.winners;
+  let body;
   if (!result.showdown) {
-    const w = result.winners[0];
-    const who = w.seat === HERO_SEAT ? 'あなた' : `${esc(w.name)}さん`;
-    return `<div class="bn-why">ほかの全員が降りたので</div><div class="bn-row"><b>${who}</b>が取りました　<span class="bn-amt">+${fmt(w.amount)}</span></div><small>（札は見せません）</small>`;
+    const w = ws[0];
+    body = `<div class="rs-why">ほかの全員が降りたので</div><div class="rs-who"><b>${whoOf(w)}が取りました</b><span class="rs-amt">+${fmt(w.amount)}</span></div><div class="rs-note">（札は見せません）</div>`;
+  } else if (ws.length >= MANY) {
+    const names = ws.map((w) => w.detail ?? w.hand);
+    const same = names.every((x) => x === names[0]);
+    body = `<div class="rs-why">${ws.length}人で分けました${same ? `　${esc(names[0])}` : ''}</div><div class="rs-grid">${ws.map((w) => `<div class="rs-who small"><b>${whoOf(w)}</b><span class="rs-amt">+${fmt(w.amount)}</span></div>`).join('')}</div>`;
+  } else {
+    body = ws.map((w) => `<div class="rs-row"><div class="rs-who"><b>${whoOf(w)}の勝ち</b><span class="rs-amt">+${fmt(w.amount)}</span></div>`
+      + `<div class="rs-hand"><span class="rs-name">${esc(w.detail ?? w.hand)}</span><span class="rs-cards">${(w.cards ?? []).map((c) => cardHTML(c, 'sm')).join('')}</span></div></div>`).join('');
   }
-  return result.winners.map((w) => `<div class="bn-row"><b>${esc(w.name)}</b>　${esc(w.hand)}　<span class="bn-amt">+${fmt(w.amount)}</span></div>`).join('');
+  return `<div class="rs-body">${body}</div>${next ? `<button class="mb main rs-next" data-next="1">${NEXT[next]}</button>` : ''}`;
 }
 
 // 勝った人の札の中身（席の近くに出す）：役の名前と勝った額。勝負にならなかったときは額だけ。sv：view-model の席

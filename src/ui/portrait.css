@@ -5,7 +5,7 @@
 /* スマホを横にしたとき（main.js が body に class="rotate" を付ける） */
 #rotate{display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:14px;
   background:linear-gradient(#3a2618,#160c06);color:#ffe9a6;font:800 20px "Yu Mincho",serif;letter-spacing:.08em;text-align:center}
-#rotate small{font:600 13px "Yu Gothic UI",sans-serif;color:#d9c49a;letter-spacing:0}
+#rotate small{max-width:86%;font:600 13px/1.6 "Yu Gothic UI",sans-serif;color:#d9c49a;letter-spacing:0}
 body.rotate #rotate{display:flex}
 
 /* 額の部品（amount-bar.js）：目盛りのボタン4つ・−/＋・溝とつまみ。押す所は44ピクセル以上 */
@@ -101,12 +101,14 @@ body.rotate #rotate{display:flex}
 .pt .dealer{width:22px;height:22px;font:800 11px/22px Georgia,serif}
 .pt .pt-pot{position:absolute;left:50%;top:280px;transform:translate(-50%,-50%);z-index:3;max-width:120px;white-space:nowrap;
   font:800 12px/16px "Segoe UI",sans-serif;color:var(--gold-l);background:rgba(10,6,3,.62);padding:2px 12px;border-radius:11px;border:1px solid rgba(255,229,160,.4)}
-.pt .banner{top:329px;max-width:236px;width:max-content;padding:5px 12px;font-size:11px;line-height:15px}
-.pt .banner b{font-size:12px}
-.pt .banner .bn-row{font-size:13px;line-height:18px}
-.pt .banner .bn-row b{font-size:14px}
-.pt .banner .bn-amt{font-size:15px}
-.pt .banner .bn-why{font-size:11px}
+/* ハンドの結果の札（段階5-5）：手元の下に付けて上へ伸びる（額の所とボタンの上。人が多いときは手札の上まで） */
+.pt .rs-panel{left:10px;right:10px;top:auto;bottom:6px;max-height:232px;padding:8px 12px;gap:6px}
+.pt .rs-who b{font-size:14px}
+.pt .rs-amt{font-size:15px}
+.pt .rs-name{font-size:12px}
+.pt .rs-cards .cd{width:26px;height:36px}
+.pt .rs-cards .cd .ix i{font-size:11px}
+.pt .rs-next{min-height:44px;min-width:0;width:100%;padding:8px 12px;font-size:15px}
 .pt .winpill{font-size:13px;padding:3px 9px;border-radius:10px;max-width:128px;box-sizing:border-box}
 .pt .winpill.long{font-size:11px}
 .pt .winpill small{font-size:12px}
@@ -193,6 +195,13 @@ body.rotate #rotate{display:flex}
 /* タイトル（縦）案A「ロゴが主役」（title.js の titlePortraitHTML。設計書 第5節・付属資料 mock-title-a.png） */
 .pt .tp{display:flex;flex-direction:column;align-items:stretch;padding:22px 14px 10px;gap:0}
 .pt .tp-head{text-align:center}
+.pt .tp-help{position:absolute;top:12px;right:12px;z-index:3;min-height:44px;padding:0 14px;border-radius:22px;cursor:pointer;font:800 13px "Yu Gothic UI","Segoe UI",sans-serif;color:#5a2f17;background:#f3e6c8;border:1px solid #c9ab76;box-shadow:0 2px 6px rgba(60,40,15,.25)}
+/* 新しい版の知らせ（上の真ん中）が出ているときは、知らせの下へずらす（右上で重ならないように） */
+.pt .tp-update+.tp-help{top:60px}
+.pt .st-body.tut-menu{padding:12px}
+.pt .tut-item{min-height:44px;padding:10px 14px}
+.pt .tut-item b{font-size:16px}
+.pt .tut-bubble{width:360px;padding:12px 14px 10px;font-size:14px;line-height:1.6}
 .pt .tp .tlogo{width:120px;height:120px;margin:0 auto -4px}
 .pt .tp .brand{font-size:12px}
 .pt .tp .lgA{width:330px;height:162px;margin:2px auto 0}

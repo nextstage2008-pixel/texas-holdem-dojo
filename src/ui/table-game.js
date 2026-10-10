@@ -20,13 +20,13 @@ import { mountPortraitShell, renderPortrait } from './table-portrait.js';
 import { createAmountBar } from './amount-bar.js';
 import { createCueTracker, handEndCues, championOf } from './sound-cues.js';
 import { createMotion } from './motion.js';
-import { motionPlan, timedCues, RESULT_HOLD_MS } from './motion-plan.js';
+import { motionPlan, timedCues } from './motion-plan.js';
 import { FAST_FACTOR } from './motion-settings.js';
 import { createDial } from './dial.js';
 import { buildView } from './view-model.js';
 import { clampTo } from './presets.js';
 import { fmt, esc } from './format.js';
-import { resultBannerHTML } from './result-banner.js';
+import { resultPanelHTML } from './result-banner.js';
 import { buildCoachView, buildReport } from './coach-view.js';
 import {
   reportHTML, luckLineHTML, mainEndHTML, examStartHTML, examEndHTML, examLeaks, tatsujinHTML, promoteHTML,
@@ -51,6 +51,7 @@ import { localDate } from '../dojo/dates.js';
 import {
   createMainSession, restoreMainSession, dealMain, closeMain, finishMain, mainSnapshot, moveTexts, mainOutcome, resumeLabel, resumeHand,
 } from '../game/main-event.js';
+import { freeCastFor } from '../game/free-cast.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -69,8 +70,22 @@ export function gridOf(a, players) {
 }
 const IDLE = { phase: 'idle', analysis: null, verdict: null, handLog: [], review: [], error: null };
 
-// 結果の帯を出しておく長さ：勝負になったハンドはいつも3秒（早回しでも）、ほかは速さの係数を掛ける（設計書 段階5-3 第4-1・5節）
-export const resultHoldMs = (result, f) => (result?.showdown ? RESULT_HOLD_MS : Math.round(RESULT_HOLD_MS * f));
+// ハンドの結果の札（設計書 段階5-5 第2節）。last：大会がこのハンドで終わるか（下のボタンを「結果へ」に）。
+// 作れなければ「次のハンドへ」（「結果へ」）だけを出す（進行は止めない。設計書 第6節）
+export function panelFor(result, last) {
+  try {
+    return resultPanelHTML(result, { next: last ? 'end' : 'hand' });
+  } catch (e) {
+    console.error(e);
+    return `<button class="mb main rs-next" data-next="1">${last ? '結果へ' : '次のハンドへ'} ▶</button>`;
+  }
+}
+// 大会がこのハンドで終わるか（閉じたあとの形で）：大会が終わった・あなたが飛んだ
+export const tourEnds = (after) => after.tournament.finished || after.tournament.players[HERO_SEAT].stack <= 0;
+// 自由対局の顔ぶれ（選べなければ null ＝ いつもの8人）
+const freeSetup = (seed) => { const players = freeCastFor(seed); return players ? { players } : null; };
+// 結果の札が出てからこの長さの間は、押しても次へ進まない（動きを飛ばそうと続けて押した指で、結果を見ずに進まないように）
+export const RESULT_MIN_MS = 500;
 // 動きの速さの係数：⏩ を押している間と、あなたが降りたあとは「とても速い」。ほかは設定の速さ（cfg：motionNow の結果。読めなければふつう）
 export const motionFactor = (fast, cfg) => (fast ? Math.min(FAST_FACTOR, cfg?.factor ?? 1) : cfg?.factor ?? 1);
 // 描く形：あなたの番を待っているときだけ手番のボタンを出す（台本が流れている間は押せない形。流し終えて番が始まってから押せる）
@@ -91,7 +106,7 @@ export function createTableGame(stage, opts) {
   });
   const dial = parts.control(refs.dial, { onChange: () => draw() });
   const ui = {
-    dial, fast: false, banner: null, tab: 'coach', freshDial: false, coachView: null,
+    dial, fast: false, result: null, tab: 'coach', freshDial: false, coachView: null,
     band: chapter ? `${chapter.label}　指南つき対局・早回し` : exam ? '最終試験' : main ? '本番大会' : '自由対局　9人・上位3人入賞',
     notices: [], flash: null, // 本番大会の卓の移動のお知らせ（欄の下・卓の上の帯）
     exam: null, grid: null, // 描くたびに入れる：最終試験の受験の数・縦の板の手の表
@@ -171,13 +186,12 @@ export function createTableGame(stage, opts) {
     if (!plan) return;
     try { await motion.play(plan, before); } catch (e) { console.error(e); }
   }
-  // 結果の帯を出しておく。その前でも、卓を押せば次へ
+  // ハンドの結果の札を出しておく。「次のハンドへ」か卓を押すまで待つ（時間では進まない。設計書 段階5-5 第2-1節）
   let wake = null;
-  const holdResult = (ms) => new Promise((resolve) => {
-    const done = () => { clearTimeout(timer); wake = null; resolve(); };
-    const timer = setTimeout(done, ms);
-    wake = done;
-  });
+  let resultAt = 0; // 結果の札を出した時刻
+  let lastPanel = false; // 出ている結果の札が、大会がそのハンドで終わる札（「結果へ」）か
+  const waitNext = () => new Promise((resolve) => { wake = () => { wake = null; resolve(); }; });
+  const nextHand = () => { if (wake && performance.now() - resultAt >= RESULT_MIN_MS) wake(); };
   const muteIcon = () => { refs.mute.textContent = opts.soundOn?.() === false ? '🔇' : '🔊'; };
 
   // 卓の上の帯（数秒で消える）
@@ -230,6 +244,9 @@ export function createTableGame(stage, opts) {
     console.error(e);
     runId++;
     waitingHero = false;
+    ui.result = null;
+    wake = null;
+    lastPanel = false;
     motion.skip();
     // 第5・6章は、繰り越した判断を残したまま次の大会を始める（段階4-2 第8節）
     const keep = chapter && chapterOf(chapter.id).keepGoing;
@@ -267,7 +284,7 @@ export function createTableGame(stage, opts) {
       } else session = dealNext(session);
       // 前のハンドの採点は次の配りに持ち越さない（段階4の振り返りは残す。段階2の繰越）
       coach = { ...coach, phase: coach.phase === 'review' ? 'review' : 'idle', analysis: null, verdict: null, handLog: [] };
-      ui.banner = null;
+      ui.result = null;
       await show(null, withEnd(dealCues()));
       while (session.hand.street !== 'complete') {
         if (myRun !== runId) return;
@@ -292,6 +309,9 @@ export function createTableGame(stage, opts) {
     ended = true;
     runId++;
     waitingHero = false;
+    ui.result = null;
+    wake = null;
+    lastPanel = false;
     coach = { ...coach, phase: 'idle', analysis: null, verdict: null };
     draw();
     if (exam) {
@@ -369,7 +389,6 @@ export function createTableGame(stage, opts) {
     // 最後の台本を待っている間に卓をやめていたら、何もしない（記録・続きの保存・大会の成績を書き戻さない）
     if (myRun !== runId) return;
     const view = buildView(session);
-    ui.banner = resultBannerHTML(view.result); // 音（ポットを取る音・一言）は、最後の行動の音といっしょに鳴らした
     // 段階4の場面の判断は、ハンドが終わってからまとめて振り返る
     const review = coach.handLog.filter((d) => coachShows(d.level, 'handEnd') === 'review');
     if (review.length) {
@@ -386,10 +405,22 @@ export function createTableGame(stage, opts) {
     const handNo = session.tournament.handNumber + 1;
     const verdicts = session.decisions.filter((d) => d.handNo === handNo);
     const closed = main ? closeMainHand(result, verdicts) : null;
+    const after = main ? null : closeHand(session); // 閉じた形を先に作る（札の下のボタンを決め、記録に使う。卓の形を入れ替えるのは押したあと）
+    // 自由対局・章の対局：ハンドの記録は札を出す前に済ませる（札の所で閉じたりやめたりしても、そのハンドを数える。本番大会の closeMainHand と同じ）
+    if (!main) {
+      if (result) results.add(result);
+      opts.onHand?.(after, coachMode, allDecisions(), { result, verdicts });
+    }
+    // 手元に結果の札を出して、押すまで待つ。音（ポットを取る音・一言）は、最後の行動の音といっしょに鳴らした
+    const last = main ? !!closed.outcome : tourEnds(after);
+    lastPanel = last;
+    ui.result = panelFor(view.result, last);
     draw();
-    await holdResult(resultHoldMs(view.result, factor()));
+    resultAt = performance.now();
+    await waitNext();
+    lastPanel = false;
     if (myRun !== runId) return;
-    ui.banner = null;
+    ui.result = null;
     if (main) {
       session = closed.session;
       if (closed.texts.length) {
@@ -399,9 +430,7 @@ export function createTableGame(stage, opts) {
       if (closed.outcome) endGame(closed.outcome.place === 1 ? 'win' : 'bust', closed.outcome, closed);
       return;
     }
-    session = closeHand(session);
-    if (result) results.add(result);
-    opts.onHand?.(session, coachMode, allDecisions(), { result, verdicts });
+    session = after;
     const me = session.tournament.players[HERO_SEAT];
     if (!session.tournament.finished && me.stack > 0) return;
     if (chapter && continueGame(chapter.id, tallyOf(allDecisions()))) offerNext(me);
@@ -412,6 +441,9 @@ export function createTableGame(stage, opts) {
   function offerNext(me) {
     runId++;
     waitingHero = false;
+    ui.result = null;
+    wake = null;
+    lastPanel = false;
     coach = { ...coach, phase: 'idle', analysis: null, verdict: null };
     draw();
     const promoted = recordTour(me.place);
@@ -536,9 +568,11 @@ export function createTableGame(stage, opts) {
     runId++;
     ended = false;
     hideOverlay();
-    const st = chapter ? chapter.setup() : null; // 章の対局は、始めるたびに顔ぶれと始め方を作り直す
+    // 章の対局は、始めるたびに顔ぶれと始め方を作り直す。自由対局は、始めるたびに44人から8人を選び直す（設計書 段階5-5 第3節）
+    const seed = Date.now() % 2147483647;
+    const st = chapter ? chapter.setup() : opts.mode === 'free' ? freeSetup(seed) : null;
     session = createSession({
-      seed: Date.now() % 2147483647,
+      seed,
       coachMode: chapter ? 'auto' : coachMode,
       coach: chapter || coachMode === 'auto' ? (session?.coach ?? opts.coach) : null,
       heroName: opts.heroName,
@@ -556,6 +590,8 @@ export function createTableGame(stage, opts) {
   }
 
   function confirmExit() {
+    // 大会がそのハンドで終わる結果の札（「結果へ」）が出ている間は、「結果へ」と同じ（終わりの札・大会の成績・試験の合否を飛ばさない）
+    if (wake && lastPanel) { wake(); return; }
     if (ended) { opts.onExit(); return; }
     memo.keep(currentOverlay()); // 「続ける」で、いま出ている札（「次の大会へ」の札など）に戻す
     if (exam) {
@@ -586,7 +622,7 @@ export function createTableGame(stage, opts) {
     muteIcon();
   });
   refs.menu.addEventListener('click', confirmExit);
-  refs.stop.addEventListener('click', () => endGame('stop'));
+  refs.stop.addEventListener('click', () => { if (wake && lastPanel) { wake(); return; } endGame('stop'); });
   refs.tabs.addEventListener('click', (e) => {
     const b = e.target.closest('[data-tab]');
     if (b) { ui.tab = b.dataset.tab; draw(); }
@@ -595,11 +631,13 @@ export function createTableGame(stage, opts) {
     if (e.target.closest('[data-grid]')) showGrid();
     if (e.target.closest('[data-repeat]')) showRepeat();
   });
-  // 卓を押したら：動いているものを最後まで飛ばす。結果の帯が出ているときは、待たずに次のハンドへ（設計書 段階5-3 第5節）
+  // 結果の札の「次のハンドへ」（「結果へ」）
+  refs.result.addEventListener('click', (e) => { if (e.target.closest('[data-next]')) nextHand(); });
+  // 卓を押したら：動いているものを最後まで飛ばす。結果の札が出ているときは次のハンドへ（設計書 段階5-3 第5節・段階5-5 第2-4節）
   stage.firstElementChild?.addEventListener('click', (e) => {
     if (e.target.closest?.(NOT_TABLE)) return;
     if (motion.busy()) motion.skip();
-    else wake?.();
+    else nextHand();
   });
   refs.overlay.addEventListener('click', (e) => {
     if (!gate.accept(performance.now(), e.detail)) return;

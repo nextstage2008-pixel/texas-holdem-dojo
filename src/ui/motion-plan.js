@@ -7,7 +7,6 @@
 // 席の番号はハンドの席（あなたは heroSeat）。表示の位置への置き換えは動きの層（motion.js）が受け持つ。
 
 export const MOTION_MS = { deal: 180, dealGap: 60, bet: 250, fold: 200, collect: 350, place: 120, flip: 220, award: 500 };
-export const RESULT_HOLD_MS = 3000; // 結果の帯を出しておく長さ（その前でも卓を押せば次へ）
 
 const round = (x) => Math.round(x * 1000) / 1000;
 

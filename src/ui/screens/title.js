@@ -81,6 +81,7 @@ export function titleHTML(v, layout = 'pc') {
       <button class="mb s" data-go="dojo"><span>道場で学ぶ ${review}</span><small>章を選ぶ・講義・練習問題</small></button>
       <button class="mb s" data-go="free"><span>自由対局</span><small>9人卓・指南の段階を選べる</small></button>
       <button class="mb s" data-go="main"><span>本番大会</span><small>${v.main ? `続きあり（${esc(v.main)}）` : '45人・9人×5卓・上位6人入賞'}</small></button>
+      <button class="mb s" data-go="tutorial"><span>遊び方</span><small>画面の見方・1ハンドの進め方</small></button>
       <div class="mrow"><button class="mb s" data-go="stats"><span>成績と統計</span></button><button class="mb s" data-go="settings"><span>設定</span><small>名前の変更など</small></button></div>
     </div>
   </div>
@@ -102,7 +103,7 @@ function titlePortraitHTML(v) {
   const review = v.reviews ? `<em class="badge-r">復習 ${v.reviews}問</em>` : '';
   const tile = (go, label, sub, extra = '') => `<button class="tp-tile" data-go="${go}"><b>${label}</b><small>${esc(sub)}</small>${extra}</button>`;
   return `${LOGO_DEFS}<div class="scr ts tp${v.safariNote ? ' noted' : ''}">
-  ${v.update ? `<button class="tp-update" data-go="sw-update">${UPDATE_TEXT}</button>` : ''}<div class="tp-head">${palmSVG('tlogo')}<div class="brand">${BRAND}</div>${logotypeSVG('lgA')}</div>${v.safariNote ? `<button class="tp-note" data-go="home-howto">${HOME_NOTE}</button>` : ''}
+  ${v.update ? `<button class="tp-update" data-go="sw-update">${UPDATE_TEXT}</button>` : ''}<button class="tp-help" data-go="tutorial">❓ 遊び方</button><div class="tp-head">${palmSVG('tlogo')}<div class="brand">${BRAND}</div>${logotypeSVG('lgA')}</div>${v.safariNote ? `<button class="tp-note" data-go="home-howto">${HOME_NOTE}</button>` : ''}
   <div class="tp-fan">${fan}${stacks}</div>
   <div class="tp-who"><img src="assets/avatars/av_hero.webp" alt=""><div><b>${esc(v.name)} さん</b><small>${esc(v.chapter)}${v.accuracy === null ? '' : `　正答率 ${v.accuracy}%`}</small><div class="prog"><i style="width:${Math.round(v.progress * 100)}%"></i></div></div><span class="medal">${esc(v.rank)}</span></div>
   <button class="tp-go" data-go="resume"><span>${v.resume.label}</span><small>${esc(v.resume.sub)}</small></button>

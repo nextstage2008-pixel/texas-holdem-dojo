@@ -11,7 +11,6 @@ export const PT = {
   plate: { w: 72, h: 36, lift: 6 }, // 名札（顔に6ピクセルかかる）
   board: { cy: 202, w: 46, h: 64, gap: 3 }, // 場の札（縦は卓の場所の約42%）
   pot: { cy: 280, w: 120, h: 22 }, // ポットの額（約58%）
-  banner: { cy: 329, w: 236, h: 66 }, // ハンドの結果の帯（最大の幅と、3行までの高さ）。場の札と下の段の席の間（段階5-3。勝った人の札を真ん中の席の横に置くため、ポットの場所から下げた）
   win: { w: 128, h: 40 }, // 勝負に勝った人の札（役の名前と勝った額の2行。長い役の名前は小さめの字で、この大きさに収める）
   me: { cx: 222, cy: 458, w: 88, h: 36 }, // あなたの持ち点の名札（卓の一番下＝手元のすぐ上。左下の「やめて判定する」を避けて少し右。段階5-3）
   shown: { w: 40, h: 56, shift: 18, lift: 6 }, // 勝負で見せた札（顔の上に扇。2枚目を18ずらす）
@@ -24,7 +23,7 @@ export const PT = {
 export const PT_SEATS = [null, [37, 386], [37, 272], [37, 158], [136, 52], [257, 52], [356, 158], [356, 272], [356, 386]];
 // 賭けた額と行動の札の中心（表示位置0＝あなたは卓の下の中央）
 export const PT_MARKS = [[196.5, 410], [134, 372], [134, 248], [134, 150], [136, 112], [257, 112], [259, 150], [259, 248], [259, 372]];
-// 勝負に勝った人の札の中心（表示位置0＝あなたは手元の上）。場の札・結果の帯・席・見せた札と重ならない所（段階5-3）
+// 勝負に勝った人の札の中心（表示位置0＝あなたは手元の上）。場の札・席・見せた札と重ならない所（段階5-3）
 export const PT_WINS = [[196.5, 396], [137, 386], [137, 272], [137, 150], [137, 122], [256, 122], [256, 150], [256, 272], [256, 386]];
 // ディーラーの印の中心
 export const PT_DEALERS = [[110, 410], [88, 398], [88, 290], [64, 100], [76, 40], [317, 40], [329, 100], [305, 290], [305, 398]];
@@ -51,7 +50,6 @@ export function shownBox(disp) {
 
 export const boardBox = () => box('場の札', CX, PT.table.y + PT.board.cy, PT.board.w * 5 + PT.board.gap * 4, PT.board.h);
 export const potBox = () => box('ポット', CX, PT.table.y + PT.pot.cy, PT.pot.w, PT.pot.h);
-export const bannerBox = () => box('結果の帯', CX, PT.table.y + PT.banner.cy, PT.banner.w, PT.banner.h);
 // 賭けた額と行動の札は1枚の札に出す（「レイズ 1,300」「コール 500」「チェック」）
 export const betBox = (disp) => box(`席${disp}の額`, PT_MARKS[disp][0], PT.table.y + PT_MARKS[disp][1], PT.mark.w, PT.mark.h);
 export const dealerBox = (disp) => box(`席${disp}のD`, PT_DEALERS[disp][0], PT.table.y + PT_DEALERS[disp][1], PT.dealer, PT.dealer);

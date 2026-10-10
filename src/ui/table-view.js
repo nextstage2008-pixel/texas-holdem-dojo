@@ -47,7 +47,7 @@ export function mountShell(stage, labels = { mark: '自由', name: 'あなた', 
         <div class="hero" data-ref="heroCards" data-mv="cards-0"></div>
         <div class="mid"><div class="hand2" data-ref="handInfo"></div><div class="btnrow" data-ref="buttons"></div></div>
         <div class="dial off" data-ref="dial"></div>
-      </div></div>
+      </div><div class="rs-panel" data-ref="result" hidden></div></div>
       <div class="overlay" data-ref="overlay"></div>
     </div>
     <div class="cp">
@@ -171,8 +171,7 @@ export function renderAll(refs, view, ui) {
   refs.info.innerHTML = `残り <b>${view.hud.alive}</b> / ${view.hud.total}人　入賞 <b>${view.hud.paid}</b>位まで<br>平均 <b>${fmt(view.hud.avg)}</b>　ハンド #${view.hud.handNo}`;
   refs.speed.classList.toggle('on', ui.fast);
   refs.board.innerHTML = boardHTML(view.board, view.boardLit);
-  refs.layer.innerHTML = layerHTML(view) + (ui.banner ? `<div class="banner">${ui.banner}</div>` : '')
-    + (ui.flash ? `<div class="flash">${esc(ui.flash)}</div>` : ''); // 卓の移動のお知らせ（数秒）
+  refs.layer.innerHTML = layerHTML(view) + (ui.flash ? `<div class="flash">${esc(ui.flash)}</div>` : ''); // 卓の移動のお知らせ（数秒）
   refs.side.innerHTML = sideHTML(view, ui.notices ?? []);
   // 右の欄：コーチと大会の状況をタブで切り替える。最終試験の間は指南なし（ui.exam：この受験の判断の数）
   refs.coach.innerHTML = ui.exam ? examCoachHTML(ui.exam) : coachHTML(ui.coachView);
@@ -197,4 +196,7 @@ export function renderAll(refs, view, ui) {
     ui.dial.clear();
   }
   refs.buttons.innerHTML = buttonsHTML(c, ui.dial.value());
+  // ハンドの結果の札（手元のボタンとダイヤルの上。設計書 段階5-5 第2節）
+  refs.result.innerHTML = ui.result ?? '';
+  refs.result.hidden = !ui.result;
 }

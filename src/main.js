@@ -11,6 +11,10 @@ import { quizHTML, testResultHTML, wrongList } from './ui/screens/quiz.js';
 import { onKey } from './ui/keys.js';
 import { settingsHTML, dialogHTML, importSummaryHTML } from './ui/screens/settings.js';
 import { aboutHTML } from './ui/screens/about.js';
+import { tutorialMenuHTML } from './ui/screens/tutorial-menu.js';
+import { LESSONS, lessonOf } from './tutorial/lessons.js';
+import { tutorialDone, withTutorialDone } from './ui/tutorial-record.js';
+import { createTutorialGame, nextLessonOf } from './ui/tutorial-game.js';
 import { statsHTML, buildStatsView } from './ui/screens/stats.js';
 import { esc } from './ui/format.js';
 import { loadRecord, serialize, exportFileName, inspectImport, emptyRecord } from './dojo/save.js';
@@ -32,7 +36,7 @@ import { createAudio, bindUnlock } from './ui/audio.js';
 import { createSound } from './ui/sound.js';
 import { soundSettings, withSound } from './dojo/sound-settings.js';
 import { motionSettings, withMotion, motionNow } from './ui/motion-settings.js';
-import { layoutFor, layoutInputs } from './ui/layout.js';
+import { layoutFor, layoutInputs, watchLayout } from './ui/layout.js';
 import { NUDGE_TEXT, afterTournament, afterExport, isSafariTab, requestPersist, HOME_HOWTO } from './ui/keep-record.js';
 
 const stage = document.getElementById('stage');
@@ -133,7 +137,7 @@ function dialog(title, body, buttons = [{ go: 'dlg-close', label: 'とじる', p
 // 並べ方（設計書 段階5-1 第3節）：縦長の画面はスマホの並べ方、横長は PC の並べ方。スマホを横にしたら「縦にしてお使いください」を重ねる。
 // 卓は、始めたときの並べ方を終わるまで使う（遊んでいる途中で窓の形が変わっても描き直さない）。返す値：並べ方が変わったか
 function applyLayout() {
-  const l = layoutFor(layoutInputs(window));
+  const l = layoutFor(layoutInputs(window, document.getElementById('viewport')));
   document.body.classList.toggle('rotate', l.rotate);
   if (screen.name === 'table') return false;
   const changed = stage.dataset.layout !== l.layout;
@@ -160,6 +164,7 @@ function render() {
     });
   }
   if (s.name === 'about') html = aboutHTML({ credits: voiceCredits, version: VERSION_LINE });
+  if (s.name === 'tutorial') html = tutorialMenuHTML({ lessons: LESSONS, done: tutorialDone(rec.settings) });
   if (s.name === 'stats') html = statsHTML(buildStatsView(rec, s.tab ?? 'quality'));
   stage.innerHTML = html + (overlay ?? '');
   gate.arm(performance.now());
@@ -293,6 +298,22 @@ const soundOpts = () => ({
   motion: () => motionNow(rec.settings, REDUCED),
 });
 
+// 遊び方のチュートリアル（設計書 段階5-4）：目次の1つを卓で流す。最後まで終えたら終えた印を記録に残す
+function startTutorial(id) {
+  const lesson = lessonOf(id);
+  if (!lesson) return;
+  if (table) { table.stop(); table = null; }
+  screen = { name: 'table', ch: null };
+  overlay = null;
+  table = createTutorialGame(stage, {
+    ...soundOpts(),
+    lesson, heroName: rec.profile.name ?? 'あなた', nextLesson: nextLessonOf(LESSONS, id),
+    onDone: (id) => commit(withTutorialDone(rec, id)),
+    onNext: (next) => startTutorial(next),
+    onExit: () => show({ name: 'tutorial' }),
+  });
+}
+
 function startChapterGame(ch) {
   const rng = createRng(newSeed());
   screen = { name: 'table', ch };
@@ -408,6 +429,8 @@ const ACTIONS = {
   },
   dojo: () => show({ name: 'dojo' }),
   title: () => show({ name: 'title' }),
+  tutorial: () => show({ name: 'tutorial' }),
+  'tut-start': (el) => startTutorial(el.dataset.lesson),
   free: startFreePlay,
   main: () => {
     if (!rec.mainGame) { startMain(null); return; }
@@ -481,12 +504,13 @@ stage.addEventListener('click', (e) => {
 });
 // 起動演出はどのキーでも飛ばす。名前の欄の Enter で送る（変換中の Enter は送らない）
 window.addEventListener('keydown', (e) => onKey(e, screen.name, { skip: afterSplash, submit: submitName }));
-window.addEventListener('resize', () => {
-  table?.skipMotion(); // 卓の動きは最後まで飛ばしてから描き直す（設計書 段階5-3 第6節）
+// 窓の大きさ・画面の大きさ・画面の向きが変わったら：卓の動きは最後まで飛ばしてから、並べ方と「縦にしてお使いください」を決め直して描き直す
+// （設計書 段階5-3 第6節・段階5-5 第4節）
+watchLayout(window, document.getElementById('viewport'), () => {
+  table?.skipMotion();
   if (applyLayout()) render();
   fitStage(stage);
 });
-new ResizeObserver(() => fitStage(stage)).observe(document.getElementById('viewport'));
 
 render();
 splashTimer = setTimeout(afterSplash, 3400);

@@ -9,6 +9,7 @@ import { presetTargets, potTotal } from './presets.js';
 import { fmt } from './format.js';
 import { drawOuts } from '../calc/odds.js';
 import { showdownLit } from './best-five.js';
+import { bestHand } from './hand-name.js';
 
 const ACTION_LABEL = { fold: '降り', check: 'チェック', call: 'コール' };
 const STREET_LABEL = { preflop: 'プリフロップ', flop: 'フロップ', turn: 'ターン', river: 'リバー' };
@@ -121,14 +122,25 @@ export function buildView(session) {
     };
   }
 
+  // ハンドの結果。勝負になったら、勝った人ごとに詳しい役（detail）と役を作った5枚（cards・見せる順）も（設計書 段階5-5 第2-2節）。
+  // 詳しい役が作れなければ detail・cards は null（結果の札は今の役の名前 hand を出す）
   let result = null;
   if (complete) {
     result = {
       showdown: h.result.showdown,
-      winners: h.result.winners.map((i) => ({
-        seat: i, name: t.players[i].name, amount: h.result.won[i],
-        hand: h.result.showdown ? describe(h.result.scores[i]) : null,
-      })),
+      winners: h.result.winners.map((i) => {
+        const w = { seat: i, name: t.players[i].name, amount: h.result.won[i], hand: h.result.showdown ? describe(h.result.scores[i]) : null, detail: null, cards: null };
+        if (h.result.showdown) {
+          try {
+            const b = bestHand(h.seats[i].hole, h.board);
+            w.detail = b.name;
+            w.cards = b.cards;
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        return w;
+      }),
     };
   }
 

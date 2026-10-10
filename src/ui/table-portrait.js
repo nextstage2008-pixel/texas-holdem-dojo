@@ -26,7 +26,7 @@ export function mountPortraitShell(stage) {
     <button class="stopbtn" data-ref="stop" hidden></button>
   </div>
   <div class="pt-strip" data-ref="strip"></div>
-  <div class="pane"><div class="hero" data-ref="heroCards" data-mv="cards-0"></div><div class="hand2" data-ref="handInfo"></div><div class="pt-amount" data-ref="dial"></div><div class="btnrow" data-ref="buttons"></div></div>
+  <div class="pane"><div class="hero" data-ref="heroCards" data-mv="cards-0"></div><div class="hand2" data-ref="handInfo"></div><div class="pt-amount" data-ref="dial"></div><div class="btnrow" data-ref="buttons"></div><div class="rs-panel" data-ref="result" hidden></div></div>
   <div class="pt-dim" data-ref="dim" hidden></div>
   <div class="pt-sheet" data-ref="sheet" hidden>
     <button class="pt-grip" data-sheet="close" aria-label="コーチの板を閉じる"></button>
@@ -101,9 +101,8 @@ export function ptLayerHTML(view, ui) {
     html += `<div class="plate pt-me${me.out ? ' out' : ''}" data-mv="stack-0" style="left:${PT.me.cx}px;top:${PT.me.cy}px"><b>${me.out ? '―' : fmt(me.stack)}</b>${me.out ? 'あなた' : `あなた・${bb}BB`}</div>`;
   }
   if (view.buttonDisp !== null) html += `<div class="dealer" data-mv="dealer" style="left:${PT_DEALERS[view.buttonDisp][0]}px;top:${PT_DEALERS[view.buttonDisp][1]}px">D</div>`;
-  // ポットの額と結果の帯は同じ場所（結果の帯が出ている間はポットを出さない）
-  if (ui.banner) html += `<div class="banner">${ui.banner}</div>`;
-  else if (view.pot > 0) html += `<div class="pt-pot" data-mv="pot">ポット ${fmt(view.pot)}</div>`;
+  // ポットの額（終わったハンドは勝った人へ流れたので出さない。ハンドの結果は手元の札。段階5-5）
+  if (view.pot > 0) html += `<div class="pt-pot" data-mv="pot">ポット ${fmt(view.pot)}</div>`;
   if (ui.flash) html += `<div class="flash">${esc(ui.flash)}</div>`; // 卓の移動のお知らせ（数秒）
   return html;
 }
@@ -183,4 +182,7 @@ export function renderPortrait(refs, view, ui) {
   }
   refs.handInfo.innerHTML = ptHandInfoHTML(view, ui.dial.value());
   refs.buttons.innerHTML = ptButtonsHTML(c, ui.dial.value());
+  // ハンドの結果の札（手元の額の所とボタンの上。設計書 段階5-5 第2節）
+  refs.result.innerHTML = ui.result ?? '';
+  refs.result.hidden = !ui.result;
 }

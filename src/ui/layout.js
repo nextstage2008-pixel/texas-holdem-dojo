@@ -18,15 +18,38 @@ export function layoutFor({ width, height, coarse, orientation = null, screenSho
   return { layout: width < height ? 'portrait' : 'pc', rotate: false };
 }
 
-// 入口が読むブラウザの値（win は window）。画面の向きと短い辺は window.screen から（main.js の画面の状態の変数 screen と取り違えない）
-export function layoutInputs(win) {
+// 入口が読むブラウザの値（win は window）。画面の向きと短い辺は window.screen から（main.js の画面の状態の変数 screen と取り違えない）。
+// 窓の幅と高さは、view（ResizeObserver が見ている #viewport）があればその大きさ（知らせが来たときの画面の大きさと食い違わないように。
+// 段階5-5 第4節）。ないとき・0 のときは window の大きさ
+export function layoutInputs(win, view = null) {
   const scr = win.screen ?? {};
   const type = scr.orientation?.type;
   return {
-    width: win.innerWidth, height: win.innerHeight, coarse: !!win.matchMedia?.('(pointer: coarse)').matches,
+    width: view?.clientWidth || win.innerWidth, height: view?.clientHeight || win.innerHeight, coarse: !!win.matchMedia?.('(pointer: coarse)').matches,
     orientation: type ? (type.startsWith('landscape') ? 'landscape' : 'portrait') : null,
     screenShort: Math.min(scr.width, scr.height) || null,
   };
+}
+
+// 並べ方を決め直す知らせ（設計書 段階5-5 第4節）：窓の大きさ（resize）・画面の大きさが本当に変わった（target の ResizeObserver）・
+// 画面の向き（screen.orientation の change）の3つ。iPhone は向きを変えたとき、窓の大きさが resize より遅れて変わることがある（見込み）ので、
+// どれからもやり直す。画面の向きや ResizeObserver のない端末は、あるものだけ見張る。win は window、onChange は引数なしで呼ぶ。返す値：やめる関数
+export function watchLayout(win, target, onChange) {
+  const stops = [];
+  const call = () => onChange();
+  win.addEventListener('resize', call);
+  stops.push(() => win.removeEventListener('resize', call));
+  const so = win.screen?.orientation;
+  if (so?.addEventListener) {
+    so.addEventListener('change', call);
+    stops.push(() => so.removeEventListener('change', call));
+  }
+  if (win.ResizeObserver && target) {
+    const ro = new win.ResizeObserver(call);
+    ro.observe(target);
+    stops.push(() => ro.disconnect());
+  }
+  return () => stops.forEach((f) => f());
 }
 
 // 舞台の縮め方：余白（切り欠き・下のバー）を引いた中に、縦横どちらかいっぱいに収める
