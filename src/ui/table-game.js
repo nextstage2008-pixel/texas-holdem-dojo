@@ -92,6 +92,9 @@ export const motionFactor = (fast, cfg) => (fast ? Math.min(FAST_FACTOR, cfg?.fa
 export const viewFor = (view, waiting) => (waiting ? view : { ...view, controls: null });
 // 卓を押したことにしない所：ボタン・右上の丸いボタン・メニューなどの札・手元・コーチの欄（PC）・コーチの板と上の段（縦）
 export const NOT_TABLE = 'button, .rb, .overlay, .pane, .cp, .pt-sheet, .pt-dim, .pt-strip, .pt-top';
+// 結果の札が出ている間に押しても次のハンドへ進めない所：自分の働きのある押せるボタン（☰ 🔊 ⏩・コーチ ▲・タブ・「次のハンドへ」）・丸いボタン・
+// 確認の札・開いたコーチの板とその外側。ほか（手元・コーチの帯や欄・上の段・結果の札・卓の外の余白）は、どこを押しても次のハンドへ
+export const NOT_NEXT = 'button:not([disabled]), .rb, .overlay, .pt-sheet, .pt-dim';
 const MODES = [1, 2, 3, 4, 5].map((n) => `<button class="mb" data-start="${n}">段階${n}</button>`).join('');
 
 export function createTableGame(stage, opts) {
@@ -633,12 +636,14 @@ export function createTableGame(stage, opts) {
   });
   // 結果の札の「次のハンドへ」（「結果へ」）
   refs.result.addEventListener('click', (e) => { if (e.target.closest('[data-next]')) nextHand(); });
-  // 卓を押したら：動いているものを最後まで飛ばす。結果の札が出ているときは次のハンドへ（設計書 段階5-3 第5節・段階5-5 第2-4節）
+  // 卓を押したら：動いているものを最後まで飛ばす（設計書 段階5-3 第5節）
   stage.firstElementChild?.addEventListener('click', (e) => {
     if (e.target.closest?.(NOT_TABLE)) return;
     if (motion.busy()) motion.skip();
-    else nextHand();
   });
+  // 結果の札が出ているときは、画面のどこを押しても次のハンドへ（設計書 段階5-5 第2-4節・2026-10-12 の手直し）。卓の外の余白でも受けるよう文書で受ける
+  const onAnyTap = (e) => { if (wake && !motion.busy() && !e.target.closest?.(NOT_NEXT)) nextHand(); };
+  stage.ownerDocument.addEventListener('click', onAnyTap);
   refs.overlay.addEventListener('click', (e) => {
     if (!gate.accept(performance.now(), e.detail)) return;
     const s = e.target.closest('[data-start]');
@@ -693,7 +698,7 @@ export function createTableGame(stage, opts) {
 
   return {
     // 画面を離れるとき：進行を止める
-    stop() { runId++; ended = true; motion.skip(); },
+    stop() { runId++; ended = true; motion.skip(); stage.ownerDocument.removeEventListener('click', onAnyTap); },
     skipMotion: () => motion.skip(), // 窓の大きさが変わった・画面を回したとき（main.js）
     session: () => session,
   };
