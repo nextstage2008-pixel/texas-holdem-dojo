@@ -52,10 +52,10 @@ export function nextLessonOf(lessons, id) {
 export function createTutorialGame(stage, opts) {
   const parts = tablePartsFor(stage.dataset.layout);
   const portrait = stage.dataset.layout === 'portrait';
-  const refs = parts.mount(stage, { mark: '遊', name: opts.heroName ?? 'あなた', sub: '遊び方' });
+  const refs = parts.mount(stage, { mark: '入門', name: opts.heroName ?? 'あなた', sub: 'チュートリアル' });
   const dial = parts.control(refs.dial, { onChange: () => {} });
   const ui = {
-    dial, fast: false, result: null, tab: 'coach', freshDial: false, coachView: null, band: `遊び方　${opts.lesson.title}`, notices: [], flash: null, exam: null, grid: null,
+    dial, fast: false, result: null, tab: 'coach', freshDial: false, coachView: null, band: `チュートリアル　${opts.lesson.title}`, notices: [], flash: null, exam: null, grid: null,
   };
   let runId = 0;
   let manualFast = false;

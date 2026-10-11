@@ -8,7 +8,7 @@ export function tutorialMenuHTML(v) {
     return `<button class="tut-item${done ? ' done' : ''}" data-go="tut-start" data-lesson="${l.id}"><b>${i + 1}　${esc(l.title)}</b><small>${esc(l.desc)}</small><em>約${l.minutes}分</em>${done ? '<span class="tut-done">済</span>' : ''}</button>`;
   }).join('');
   return `<div class="scr tut-s">
-  <div class="sbar"><button class="back" data-go="title">◀ タイトル</button><h4>遊び方</h4><span class="sp"></span></div>
+  <div class="sbar"><button class="back" data-go="title">◀ タイトル</button><h4>チュートリアル</h4><span class="sp"></span></div>
   <div class="st-body tut-menu">
     <p class="tut-lead">本物の卓を動かしながら、ゲームの進め方とルール、行動の決め方を説明します。はじめての人は上から順にどうぞ。</p>
     ${items}
