@@ -14,7 +14,7 @@ export const TARGETS = {
   coach: { pc: ['.cp'], portrait: ['.pt-strip'] },
   buttons: both('[data-ref="buttons"]'),
   controls: both('[data-ref="buttons"]', '[data-ref="dial"]'),
-  result: both('[data-ref="result"]'), // 手元の結果の札（段階5-5）
+  result: both('[data-ref="result"]'), // 卓の真ん中の結果の札（段階5-5・そのあとの手直し）
   corner: both('[data-ref="menu"]', '[data-ref="mute"]', '[data-ref="speed"]'),
   side: both('[data-ref="side"]'),
 };

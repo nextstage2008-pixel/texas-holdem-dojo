@@ -43,11 +43,12 @@ export function mountShell(stage, labels = { mark: '自由', name: 'あなた', 
         <div class="fboard" data-ref="board" data-mv="center"></div>
       </div></div></div></div></div>
       <div data-ref="layer"></div>
+      <div class="rs-panel" data-ref="result" hidden></div>
       <div class="pane"><div class="pane-in">
         <div class="hero" data-ref="heroCards" data-mv="cards-0"></div>
         <div class="mid"><div class="hand2" data-ref="handInfo"></div><div class="btnrow" data-ref="buttons"></div></div>
         <div class="dial off" data-ref="dial"></div>
-      </div><div class="rs-panel" data-ref="result" hidden></div></div>
+      </div></div>
       <div class="overlay" data-ref="overlay"></div>
     </div>
     <div class="cp">
@@ -85,7 +86,8 @@ export function seatHTML(sv) {
   </div>`;
 }
 
-function layerHTML(view) {
+// pills：勝った人の札を出すか（結果の札が出ている間は出さない。卓の真ん中で重なるため）
+function layerHTML(view, { pills = true } = {}) {
   let html = '';
   for (const sv of view.seats) {
     if (sv.empty) continue;
@@ -104,7 +106,7 @@ function layerHTML(view) {
     }
     html += seatHTML(sv);
     // 勝負に勝った人の札：役の名前と勝った額（設計書 段階5-3 第4-1節。置き場所は PC_WINS）
-    if (sv.won > 0 && sv.handName) {
+    if (pills && sv.won > 0 && sv.handName) {
       const [px, py] = PC_WINS[sv.disp];
       html += `<div class="winpill" style="left:${px}%;top:${py}px">${winLabelHTML(sv)}</div>`;
     }
@@ -171,7 +173,7 @@ export function renderAll(refs, view, ui) {
   refs.info.innerHTML = `残り <b>${view.hud.alive}</b> / ${view.hud.total}人　入賞 <b>${view.hud.paid}</b>位まで<br>平均 <b>${fmt(view.hud.avg)}</b>　ハンド #${view.hud.handNo}`;
   refs.speed.classList.toggle('on', ui.fast);
   refs.board.innerHTML = boardHTML(view.board, view.boardLit);
-  refs.layer.innerHTML = layerHTML(view) + (ui.flash ? `<div class="flash">${esc(ui.flash)}</div>` : ''); // 卓の移動のお知らせ（数秒）
+  refs.layer.innerHTML = layerHTML(view, { pills: !ui.result }) + (ui.flash ? `<div class="flash">${esc(ui.flash)}</div>` : ''); // 卓の移動のお知らせ（数秒）
   refs.side.innerHTML = sideHTML(view, ui.notices ?? []);
   // 右の欄：コーチと大会の状況をタブで切り替える。最終試験の間は指南なし（ui.exam：この受験の判断の数）
   refs.coach.innerHTML = ui.exam ? examCoachHTML(ui.exam) : coachHTML(ui.coachView);
@@ -196,7 +198,7 @@ export function renderAll(refs, view, ui) {
     ui.dial.clear();
   }
   refs.buttons.innerHTML = buttonsHTML(c, ui.dial.value());
-  // ハンドの結果の札（手元のボタンとダイヤルの上。設計書 段階5-5 第2節）
+  // ハンドの結果の札（卓の真ん中・場の札の下。設計書 段階5-5 第2節・そのあとの手直し）
   refs.result.innerHTML = ui.result ?? '';
   refs.result.hidden = !ui.result;
 }

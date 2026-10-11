@@ -23,10 +23,11 @@ export function mountPortraitShell(stage) {
     <div class="pt-rail"><div class="pt-felt"><div class="flogo">やっしーGAMES<small>TEXAS HOLD'EM DOJO</small></div></div></div>
     <div class="fboard" data-ref="board" data-mv="center"></div>
     <div data-ref="layer"></div>
+    <div class="rs-panel" data-ref="result" hidden></div>
     <button class="stopbtn" data-ref="stop" hidden></button>
   </div>
   <div class="pt-strip" data-ref="strip"></div>
-  <div class="pane"><div class="hero" data-ref="heroCards" data-mv="cards-0"></div><div class="hand2" data-ref="handInfo"></div><div class="pt-amount" data-ref="dial"></div><div class="btnrow" data-ref="buttons"></div><div class="rs-panel" data-ref="result" hidden></div></div>
+  <div class="pane"><div class="hero" data-ref="heroCards" data-mv="cards-0"></div><div class="hand2" data-ref="handInfo"></div><div class="pt-amount" data-ref="dial"></div><div class="btnrow" data-ref="buttons"></div></div>
   <div class="pt-dim" data-ref="dim" hidden></div>
   <div class="pt-sheet" data-ref="sheet" hidden>
     <button class="pt-grip" data-sheet="close" aria-label="コーチの板を閉じる"></button>
@@ -88,9 +89,9 @@ export function ptLayerHTML(view, ui) {
     }
   }
   // 勝負に勝った人の札：役の名前と勝った額を、席ごとに決めた所に（場の札・結果の帯・席・見せた札と重ならない。設計書 段階5-3 第4-1節）。
-  // 7字以上の役の名前（「ストレートフラッシュ」など）は小さめの字
+  // 7字以上の役の名前（「ストレートフラッシュ」など）は小さめの字。結果の札が出ている間は出さない（卓の真ん中で重なるため）
   for (const sv of view.seats) {
-    if (sv.empty || !(sv.won > 0) || !sv.handName) continue;
+    if (ui?.result || sv.empty || !(sv.won > 0) || !sv.handName) continue;
     const [wx, wy] = PT_WINS[sv.disp];
     html += `<div class="winpill${Array.from(sv.handName).length > 6 ? ' long' : ''}" style="left:${wx}px;top:${wy}px">${winLabelHTML(sv)}</div>`;
   }
@@ -182,7 +183,7 @@ export function renderPortrait(refs, view, ui) {
   }
   refs.handInfo.innerHTML = ptHandInfoHTML(view, ui.dial.value());
   refs.buttons.innerHTML = ptButtonsHTML(c, ui.dial.value());
-  // ハンドの結果の札（手元の額の所とボタンの上。設計書 段階5-5 第2節）
+  // ハンドの結果の札（卓の真ん中・場の札の下。設計書 段階5-5 第2節・そのあとの手直し）
   refs.result.innerHTML = ui.result ?? '';
   refs.result.hidden = !ui.result;
 }
