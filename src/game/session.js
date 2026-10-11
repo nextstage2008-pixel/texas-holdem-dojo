@@ -47,8 +47,8 @@ export function createSession({
 
 // この大会での席のタイプ（CPUの打ち方）
 export const typeAt = (session, seat) => session.types[seat];
-// コーチが相手の手の推定に使うタイプ（伏せる章では、標準的な相手＝上級者とみなす。
-// 最終試験は trueTypes：伏せても本当のタイプで推定・採点する。設計書 段階4-4 第4節）
+// コーチが相手の手の推定に使うタイプ（タイプを伏せる対局では、標準的な相手＝上級者とみなす。
+// trueTypes：伏せても本当のタイプで推定・採点する。設計書 段階4-4 第4節）
 export const coachTypeOf = (session) => (seat) => (session.hideTypes && !session.trueTypes ? 'pro' : session.types[seat]);
 // 画面に出すタイプ（伏せる章では null ＝「？」）
 export const shownTypeOf = (session) => (seat) => (session.hideTypes ? null : session.types[seat]);

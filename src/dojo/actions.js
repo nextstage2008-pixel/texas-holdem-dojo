@@ -1,13 +1,11 @@
 // 記録を進める操作。どれも記録を書き換えず、新しい記録を返す（保存は画面の側がする）。
 import { emptyChapter } from './save.js';
 import { PRACTICE_COUNT, PLAYABLE } from './chapters.js';
-import { chapterState, rankOf } from './progress.js';
+import { chapterState, rankOf, gradState } from './progress.js';
 import { addMistake, answerReview } from './reviews.js';
-import { judgeGame } from './chapter-game.js';
 import { validateName } from './name.js';
 import { addDecisions, addHand, addTournament, eventOf } from './stats.js';
-import { addRecent, judgeDan, MASTER, DAN_LABEL } from './ranks.js';
-import { canTakeExam, newAttempt, addExamTournament, titlesAfter } from './exam.js';
+import { addRecent, judgeDan, MASTER, MASTER_WINS, DAN_LABEL } from './ranks.js';
 
 function withChapter(rec, id, fn) {
   if (!PLAYABLE.includes(id)) throw new Error(`遊べない章: ${id}`);
@@ -85,32 +83,30 @@ export function finishTest(rec, id, graded, today) {
   return { record: next, firstPass, rankBefore: before, rankAfter: rankOf(next), opened };
 }
 
+// 卒業試験（2026-10-12）：始める・1問答える・終える。間違えた問題は章末試験と同じく復習へ。合格した日は最初の日のまま、最高点は下がらない
+export function startGraduation(rec, seed) {
+  if (!gradState(rec).open) throw new Error('卒業試験はまだ開いていない');
+  return { ...rec, graduation: { ...rec.graduation, test: { seed, answers: [] } }, resume: { kind: 'grad', chapter: null } };
+}
+
+export function answerGraduation(rec, choice) {
+  const cur = rec.graduation.test;
+  if (!cur) throw new Error('卒業試験を始めていない');
+  return { ...rec, graduation: { ...rec.graduation, test: { ...cur, answers: [...cur.answers, choice] } } };
+}
+
+// graded：quiz.js の gradeTest の結果。返す値：{ record, firstPass }
+export function finishGraduation(rec, graded, today) {
+  const g = rec.graduation;
+  let reviews = rec.reviews;
+  for (const r of graded.results) if (!r.correct) reviews = addMistake(reviews, r, today);
+  const graduation = { test: null, best: Math.max(g.best ?? 0, graded.score), passedAt: g.passedAt ?? (graded.passed ? today : null) };
+  return { record: { ...rec, graduation, reviews, resume: null }, firstPass: graded.passed && !g.passedAt };
+}
+
 // 復習で1問答えた
 export function answerReviewQuestion(rec, q, correct, today) {
   return { ...rec, reviews: answerReview(rec.reviews, q, correct, today), resume: { kind: 'review', chapter: null } };
-}
-
-// 対局の途中経過（1ハンドごと）。tally：chapter-game.js の tallyOf の結果
-export function recordGameHand(rec, id, tally, coach) {
-  return { ...rec, pendingGame: { chapter: id, ...tally }, coach, resume: { kind: 'game', chapter: id } };
-}
-
-// 対局を終えた。返す値：{ record, passed, accuracy, enough }
-export function finishGame(rec, id, tally, coach = rec.coach) {
-  const j = judgeGame(tally);
-  const next = withChapter(rec, id, (c) => ({
-    ...c, gamePassed: c.gamePassed || j.passed, gameBest: j.enough ? Math.max(c.gameBest ?? 0, j.accuracy) : c.gameBest,
-  }));
-  return { record: { ...next, pendingGame: null, coach }, ...j };
-}
-
-// 起動時：途中で閉じた対局があれば判定する。返す値：{ record, settled（{ chapter, passed, accuracy, enough } か null）}
-export function settlePendingGame(rec) {
-  const g = rec.pendingGame;
-  if (!g) return { record: rec, settled: null };
-  const { chapter, ...tally } = g;
-  const r = finishGame(rec, chapter, tally);
-  return { record: r.record, settled: { chapter, passed: r.passed, accuracy: r.accuracy, enough: r.enough } };
 }
 
 export const setCoach = (rec, coach) => ({ ...rec, coach });
@@ -124,38 +120,20 @@ export function recordHand(rec, verdicts, result) {
 // 大会の記録：stats.js の eventOf で作った1件を足す
 export const recordTournament = (rec, event) => ({ ...rec, stats: addTournament(rec.stats, event) });
 
-// 大会が終わった（成績が1件残る）：記録して段位を判定する。返す値：{ record, promoted（ranks.js の judgeDan と同じ）}
+// 大会が終わった（成績が1件残る）：記録して、本番大会なら優勝（1位）と入賞（6位以内）を数え、段位を判定する。
+// 本番大会の優勝が10回に届いたら達人（初段〜三段の昇段より優先。すでに達人なら知らせない）。
+// 返す値：{ record, promoted（ranks.js の judgeDan と同じ。達人なら { from, to: 4, label: '達人', wins }）}
+const MAIN_PAID = 6;
 export function endTournament(rec, event, today) {
-  return judgeDan(recordTournament(rec, event), today);
-}
-
-// 最終試験（設計書 段階4-4 第4節）。受験を始める（途中があればそのまま）・試験の続きの大会を残す・やめる（なかったことにする）
-export function startExam(rec) {
-  if (!canTakeExam(rec)) throw new Error('最終試験は三段から受けられる');
-  return rec.exam ? rec : { ...rec, exam: newAttempt() };
-}
-export const saveExamGame = (rec, snapshot) => ({ ...rec, exam: { ...(rec.exam ?? newAttempt()), game: snapshot } });
-export const abandonExam = (rec) => ({ ...rec, exam: null });
-
-// 試験の大会が終わった。verdicts：その大会の判断、place：順位、results：その大会のハンドの結果。
-// 大会の成績に種類「最終試験」で1件残し、受験に判断を足す。100回に届いたら合否を決め、合格なら達人。称号を数える。
-// 返す値：{ record, result（'continue'・'pass'・'fail'）, tally（exam.js の tallyExam）, promoted（達人か段位が上がったら { from, to, label }）}
-export function finishExamTournament(rec, { verdicts, place, results, today }) {
-  const r = addExamTournament(rec.exam ?? newAttempt(), verdicts, place);
-  const judged = r.result !== 'continue';
-  const event = eventOf({ date: today, kind: 'exam', place, results, verdicts, exam: judged ? r.result : null });
-  let next = { ...recordTournament(rec, event), exam: judged ? null : r.attempt };
-  let promoted = null;
-  if (judged) {
-    const master = rec.dan.level >= MASTER;
-    next = { ...next, titles: titlesAfter(rec.titles, { result: r.result, places: r.places, master }) };
-    if (r.result === 'pass' && !master) {
-      next = { ...next, dan: { level: MASTER, at: today } };
-      promoted = { from: rec.dan.level, to: MASTER, label: DAN_LABEL[MASTER] };
+  let next = recordTournament(rec, event);
+  if (event.kind === 'main' && event.place !== null) {
+    const t = next.mainTitles;
+    next = { ...next, mainTitles: { wins: t.wins + (event.place === 1 ? 1 : 0), cashes: t.cashes + (event.place <= MAIN_PAID ? 1 : 0) } };
+    if (next.mainTitles.wins >= MASTER_WINS && next.dan.level < MASTER) {
+      return { record: { ...next, dan: { level: MASTER, at: today } }, promoted: { from: rec.dan.level, to: MASTER, label: DAN_LABEL[MASTER], wins: next.mainTitles.wins } };
     }
   }
-  const dan = judgeDan(next, today);
-  return { record: dan.record, result: r.result, tally: r.tally, promoted: promoted ?? dan.promoted };
+  return judgeDan(next, today);
 }
 
 // 本番大会の続き（game/main-event.js の mainSnapshot の形）を残す・消す（設計書 段階4-3 第6節）

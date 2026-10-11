@@ -1,26 +1,27 @@
-// 保存データ（設計書 段階3 第7節・段階4-2 第7節・段階4-3 第6節・段階4-4 第8節）。形の点検・版の直し方・書き出しと読み込みの点検。保存先には触らない。
+// 保存データ（設計書 段階3 第7節・段階4-2 第7節・段階4-3 第6節・段階4-4 第8節・2026-10-12 の道場は座学だけ）。形の点検・版の直し方・書き出しと読み込みの点検。保存先には触らない。
 import { createCoachState } from '../coach/levels.js';
 import { SITUATIONS } from '../coach/situations.js';
-import { CHAPTERS, PLAYABLE } from './chapters.js';
+import { CHAPTERS, PLAYABLE, GRAD } from './chapters.js';
 import { isDate } from './dates.js';
 import { validateName } from './name.js';
 import { rankOf } from './progress.js';
 import { emptyStats, HAND_LIMIT, EVENT_LIMIT } from './stats.js';
 import { DAN, MASTER } from './ranks.js';
-import { emptyTitles } from './exam.js';
 
 export const APP_ID = 'yassy-games-holdem-dojo';
-export const SAVE_VERSION = 4;
-export const RESUME_KINDS = ['lecture', 'practice', 'game', 'test', 'review'];
+export const SAVE_VERSION = 5;
+export const RESUME_KINDS = ['lecture', 'practice', 'test', 'review', 'grad'];
 
 export function emptyChapter() {
   return {
     lecturePage: 0, lectureDone: false,
     practice: null, practiceDone: false, // practice：解いている途中の10問 { seed, index, correct }
-    gamePassed: false, gameBest: null, // gameBest：対局の最高正答率（0〜1）
     test: null, testBest: null, passedAt: null, // test：受けている途中の試験 { seed, answers（選んだ番号の列）}
   };
 }
+
+// 卒業試験：test（受けている途中 { seed, answers（選んだ番号の列）}）・best（最高点）・passedAt（最初に合格した日）
+export const emptyGraduation = () => ({ test: null, best: null, passedAt: null });
 
 export function emptyRecord(today) {
   return {
@@ -28,16 +29,15 @@ export function emptyRecord(today) {
     profile: { name: null, createdAt: today },
     chapters: {}, // 章の id → emptyChapter() の形（手をつけた章だけ）
     reviews: [], // { type, seed, step（0＝1日後の回・1＝3日後・2＝7日後）, due（出す日）}
-    resume: null, // { kind, chapter } 最後にしていたこと
-    pendingGame: null, // 途中で閉じた対局の集計 { chapter, decisions, good, lossSum }
+    resume: null, // { kind, chapter } 最後にしていたこと（卒業試験・復習は chapter: null）
     coach: createCoachState('auto'),
     practiceStats: { answered: 0, correct: 0 },
     settings: {},
     stats: emptyStats(), // 判断の累計・直近1,000ハンドの結果・直近100大会の成績（dojo/stats.js。版2から）
     mainGame: null, // 本番大会の続き（game/main-event.js の mainSnapshot の形。版3から）
     dan: { level: 0, at: null }, // 段位（dojo/ranks.js。0＝なし・1〜3＝初段〜三段・4＝達人）と取った日（版4から）
-    exam: null, // 最終試験の受験の途中（dojo/exam.js の newAttempt の形。game は試験の続きの大会）（版4から）
-    titles: emptyTitles(), // 最終試験の受験・合格・優勝・入賞の回数（版4から）
+    graduation: emptyGraduation(), // 卒業試験（版5から）
+    mainTitles: { wins: 0, cashes: 0 }, // 本番大会の優勝・入賞の回数（版5から。優勝10回で達人）
   };
 }
 
@@ -53,7 +53,17 @@ export const MIGRATIONS = {
   // 版2 → 3：本番大会の続きはなし
   2: (r) => ({ ...r, mainGame: null }),
   // 版3 → 4：段位・試験・称号は空から。段位の判定に使う直近の判断も空から数える
-  3: (r) => ({ ...r, dan: { level: 0, at: null }, exam: null, titles: emptyTitles(), stats: { ...r.stats, recent: [] } }),
+  3: (r) => ({ ...r, dan: { level: 0, at: null }, exam: null, titles: { exams: 0, passes: 0, wins: 0, cashes: 0 }, stats: { ...r.stats, recent: [] } }),
+  // 版4 → 5（道場は座学だけ。2026-10-12）：章の対局・以前の試験（exam）・その称号（titles）の欄を落とし、卒業試験と本番大会の称号を0から足す。
+  // 段位（達人を含む）と章の合格はそのまま。対局の続きからは消す（続きからは章の次にすること＝章末試験へ）
+  4: (r) => {
+    const { pendingGame, exam, titles, ...rest } = r;
+    const chapters = Object.fromEntries(Object.entries(r.chapters).map(([id, c]) => {
+      const { gamePassed, gameBest, ...keep } = c;
+      return [id, keep];
+    }));
+    return { ...rest, chapters, resume: r.resume?.kind === 'game' ? null : r.resume, graduation: emptyGraduation(), mainTitles: { wins: 0, cashes: 0 } };
+  },
 };
 
 export function migrate(obj, migrations = MIGRATIONS, target = SAVE_VERSION) {
@@ -111,10 +121,10 @@ const CPU_TYPES = ['tight', 'station', 'aggro', 'pro'];
 const isIntOrNull = (x, lo, hi) => x === null || isInt(x, lo, hi);
 
 // 本番大会の続き（mainSnapshot の形）の点検。返す値：問題がなければ null、あれば理由の文。
-// exam：最終試験の続きとして点検する（試験の形でなければいけない。本番大会の続きは試験の形ではいけない）
-export function checkMainGame(m, { exam = false } = {}) {
+// 試験の大会の続き（exam: true）はもうないので通さない（古い続きの exam: false は通す）
+export function checkMainGame(m) {
   if (!isObj(m) || !isInt(m.seed) || !(m.coachMode === 'auto' || isInt(m.coachMode, 1, 5))) return 'mainGame';
-  if ((m.exam === true) !== exam || (m.exam !== undefined && typeof m.exam !== 'boolean')) return 'mainGame.exam';
+  if (m.exam !== undefined && m.exam !== false) return 'mainGame.exam';
   if (m.hand !== undefined && m.hand !== null && checkHand(m.hand)) return 'mainGame.hand';
   if (!Array.isArray(m.verdicts) || !m.verdicts.every((v) => isObj(v) && SITUATIONS.includes(v.situation) && isNum(v.loss, 0) && typeof v.correct === 'boolean')) return 'mainGame.verdicts';
   if (!Array.isArray(m.results) || !m.results.every((h) => isObj(h) && isNum(h.r) && isNum(h.e))) return 'mainGame.results';
@@ -146,14 +156,6 @@ export function checkMainGame(m, { exam = false } = {}) {
   return null;
 }
 
-// 最終試験の受験の途中（dojo/exam.js の newAttempt の形）の点検
-export function checkExam(e) {
-  if (!isObj(e) || !isInt(e.tournaments) || !Array.isArray(e.places) || e.places.length !== e.tournaments || !e.places.every((p) => isInt(p, 1, 45))) return 'exam';
-  if (!Array.isArray(e.decisions) || !e.decisions.every((v) => isObj(v) && SITUATIONS.includes(v.situation) && isNum(v.loss, 0) && typeof v.correct === 'boolean')) return 'exam.decisions';
-  if (e.game !== null && checkMainGame(e.game, { exam: true })) return 'exam.game';
-  return null;
-}
-
 // 形の点検。返す値：問題がなければ null、あれば理由の文
 export function checkRecord(r) {
   if (!isObj(r)) return '記録ではない';
@@ -164,20 +166,15 @@ export function checkRecord(r) {
   if (!isObj(r.chapters)) return 'chapters';
   for (const [id, c] of Object.entries(r.chapters)) {
     if (!PLAYABLE.includes(id)) return `chapters.${id}`;
-    if (!isObj(c) || !isInt(c.lecturePage) || typeof c.lectureDone !== 'boolean' || typeof c.practiceDone !== 'boolean'
-      || typeof c.gamePassed !== 'boolean') return `chapters.${id}`;
+    if (!isObj(c) || !isInt(c.lecturePage) || typeof c.lectureDone !== 'boolean' || typeof c.practiceDone !== 'boolean') return `chapters.${id}`;
     if (c.practice !== null && !(isObj(c.practice) && isInt(c.practice.seed) && isInt(c.practice.index) && isInt(c.practice.correct))) return `chapters.${id}.practice`;
     if (c.test !== null && !(isObj(c.test) && isInt(c.test.seed) && Array.isArray(c.test.answers) && c.test.answers.every((a) => isInt(a)))) return `chapters.${id}.test`;
     if (c.testBest !== null && !isInt(c.testBest)) return `chapters.${id}.testBest`;
-    if (c.gameBest !== null && !(typeof c.gameBest === 'number' && c.gameBest >= 0 && c.gameBest <= 1)) return `chapters.${id}.gameBest`;
     if (c.passedAt !== null && !isDate(c.passedAt)) return `chapters.${id}.passedAt`;
   }
   if (!Array.isArray(r.reviews) || !r.reviews.every((v) => isObj(v) && QUESTION_TYPES.has(v.type) && isInt(v.seed) && isInt(v.step, 0, 2) && isDate(v.due))) return 'reviews';
-  if (r.resume !== null && !(isObj(r.resume) && RESUME_KINDS.includes(r.resume.kind) && (r.resume.kind === 'review' || PLAYABLE.includes(r.resume.chapter)))) return 'resume';
-  if (r.pendingGame !== null) {
-    const g = r.pendingGame;
-    if (!(isObj(g) && PLAYABLE.includes(g.chapter) && isInt(g.decisions) && isInt(g.good, 0, g.decisions) && typeof g.lossSum === 'number' && g.lossSum >= 0)) return 'pendingGame';
-  }
+  const noChapter = (k) => k === 'review' || k === 'grad';
+  if (r.resume !== null && !(isObj(r.resume) && RESUME_KINDS.includes(r.resume.kind) && (noChapter(r.resume.kind) ? r.resume.chapter === null : PLAYABLE.includes(r.resume.chapter)))) return 'resume';
   const coachBad = checkCoach(r.coach);
   if (coachBad) return coachBad;
   if (!(isObj(r.practiceStats) && isInt(r.practiceStats.answered) && isInt(r.practiceStats.correct, 0, r.practiceStats.answered))) return 'practiceStats';
@@ -185,14 +182,15 @@ export function checkRecord(r) {
   if (r.mainGame !== null && checkMainGame(r.mainGame)) return 'mainGame';
   const d = r.dan;
   if (!(isObj(d) && isInt(d.level, 0, MASTER) && (d.level === 0 ? d.at === null : isDate(d.at)))) return 'dan';
-  const t = r.titles;
-  if (!(isObj(t) && isInt(t.exams) && isInt(t.passes, 0, t.exams) && isInt(t.cashes) && isInt(t.wins, 0, t.cashes))) return 'titles';
-  if (r.exam !== null && checkExam(r.exam)) return 'exam';
+  const g = r.graduation;
+  if (!(isObj(g) && (g.test === null || (isObj(g.test) && isInt(g.test.seed) && Array.isArray(g.test.answers) && g.test.answers.length <= GRAD.count && g.test.answers.every((a) => isInt(a))))
+    && (g.best === null || isInt(g.best, 0, GRAD.count)) && (g.passedAt === null || isDate(g.passedAt)))) return 'graduation';
+  const t = r.mainTitles;
+  if (!(isObj(t) && isInt(t.cashes) && isInt(t.wins, 0, t.cashes))) return 'mainTitles';
   return checkStats(r.stats);
 }
 
 export const MAIN_DROPPED = '本番大会の続きが壊れていたので、続きの大会だけを消しました';
-export const EXAM_DROPPED = '最終試験の途中が壊れていたので、試験の途中だけを消しました（それまでの受験はなかったことになります）';
 
 // ハンドの途中の続きが壊れていたら、そのハンドの初めからにする（hand だけを消す）
 const cleanHand = (g) => (isObj(g) && g.hand !== undefined && g.hand !== null && checkHand(g.hand) ? { ...g, hand: null } : g);
@@ -221,13 +219,6 @@ export function parseRecord(text) {
     if (checkMainGame(record.mainGame)) {
       record = { ...record, mainGame: null };
       notices.push(MAIN_DROPPED);
-    }
-  }
-  if (isObj(record) && record.exam != null) {
-    if (isObj(record.exam) && record.exam.game != null) record = { ...record, exam: { ...record.exam, game: cleanHand(record.exam.game) } };
-    if (checkExam(record.exam)) {
-      record = { ...record, exam: null };
-      notices.push(EXAM_DROPPED);
     }
   }
   const notice = notices.length ? notices.join('。') : null;

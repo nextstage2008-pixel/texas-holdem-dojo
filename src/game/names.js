@@ -1,4 +1,4 @@
-// 本番大会・最終試験の顔ぶれ（設計書 段階4-3 第4節・段階4-4 第5節）。いつもの8人のほかの36人は、人ごとに名前・打ち方・顔が決まる。
+// 本番大会の顔ぶれ（設計書 段階4-3 第4節・段階4-4 第5節）。いつもの8人のほかの36人は、人ごとに名前・打ち方・顔が決まる。
 // 顔の絵は scripts/cut-faces.py で先生が Gemini で作った画像から切り分けたもの（assets/avatars/av_<id>.webp）。
 // type：コールしすぎる人（station）・堅い人（tight）・上級者（pro）・荒い人（aggro）
 const P = (id, name, type) => ({ id, name, type, avatar: `av_${id}` });

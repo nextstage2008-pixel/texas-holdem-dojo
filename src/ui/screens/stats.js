@@ -3,8 +3,7 @@ import { esc, fmt } from '../format.js';
 import { PLAYABLE, chapterLabel, chapterOf } from '../../dojo/chapters.js';
 import { rankOf, isOpen } from '../../dojo/progress.js';
 import { totalsOf, situationRows, leaks, luckView, MIN_HANDS } from '../../dojo/stats.js';
-import { DAN, MASTER, nextStep } from '../../dojo/ranks.js';
-import { EXAM } from '../../dojo/exam.js';
+import { DAN, MASTER, MASTER_WINS, nextStep } from '../../dojo/ranks.js';
 import { MAIN } from '../../engine/field.js';
 
 export const STATS_TABS = [['quality', '判断の質'], ['luck', '運と実力'], ['events', '大会の成績'], ['chapters', '章ごと']];
@@ -49,9 +48,9 @@ function luck(rec) {
   };
 }
 
-const EXAM_MARK = { pass: '（合格）', fail: '（もう一歩）' };
-const kindLabel = (e) => (e.kind === 'free' ? '自由対局' : e.kind === 'main' ? '本番大会' : e.kind === 'exam' ? `最終試験${EXAM_MARK[e.exam] ?? ''}` : chapterLabel(e.kind));
-// 順位：やめて判定した大会は「途中」、本番大会・最終試験の入賞（6位以内）は「（入賞）」
+// 大会の種類。なくした遊び方（試験の大会・章の対局。2026-10-12）の古い行は消さずに「以前の〜の大会」と出す
+const kindLabel = (e) => (e.kind === 'free' ? '自由対局' : e.kind === 'main' ? '本番大会' : e.kind === 'exam' ? '以前の試験の大会' : `以前の${chapterLabel(e.kind)}の大会`);
+// 順位：途中でやめた古い行は「途中」、45人の大会（本番大会・以前の試験の大会）の入賞（6位以内）は「（入賞）」
 const MAIN_PAID = MAIN.payouts.length;
 const placeText = (e) => (e.place === null ? '途中' : (e.kind === 'main' || e.kind === 'exam') && e.place <= MAIN_PAID ? `${e.place}位（入賞）` : `${e.place}位`);
 const events = (rec) => rec.stats.events.slice().reverse().map((e) => [
@@ -62,26 +61,26 @@ const events = (rec) => rec.stats.events.slice().reverse().map((e) => [
 function chapters(rec) {
   const rows = PLAYABLE.map((id) => {
     const c = rec.chapters[id];
-    return [`${chapterLabel(id)}　${chapterOf(id).title}`, c?.passedAt ? `合格（${c.passedAt}）` : '―', c?.testBest != null ? `${c.testBest}点` : '―', c?.gameBest != null ? pct(c.gameBest) : '―'];
+    return [`${chapterLabel(id)}　${chapterOf(id).title}`, c?.passedAt ? `合格（${c.passedAt}）` : '―', c?.testBest != null ? `${c.testBest}点` : '―'];
   });
   const { answered, correct } = rec.practiceStats;
-  return { rows, practice: answered ? `${pct(correct / answered)}（${correct} / ${answered}問）` : '―' };
+  const g = rec.graduation;
+  const grad = g.passedAt ? `合格（${g.passedAt}）・最高 ${g.best}点` : g.best !== null ? `まだ卒業していません・最高 ${g.best}点` : 'まだ受けていません';
+  return { rows, practice: answered ? `${pct(correct / answered)}（${correct} / ${answered}問）` : '―', grad };
 }
 
 // 段位の欄（設計書 段階4-4 第7節）：いまの段位・直近300回の数字・次の段の基準
 function danView(rec) {
   const r = rankOf(rec);
   const { step, quality: q } = nextStep(rec);
-  return { label: r.label, n: q.n, need: DAN.recent, accuracy: q.accuracy, loss: q.loss, step, all: r.passed === PLAYABLE.length, level: rec.dan.level, titles: rec.titles };
+  return { label: r.label, n: q.n, need: DAN.recent, accuracy: q.accuracy, loss: q.loss, step, all: r.passed === PLAYABLE.length, level: rec.dan.level, titles: rec.mainTitles };
 }
 
 // tab：開くタブ（省くと「判断の質」）
 export function buildStatsView(rec, tab = 'quality') {
-  const t = rec.titles;
-  const exam = t.exams || rec.stats.events.some((e) => e.kind === 'exam') ? t : null;
   return {
     tab, rank: rankOf(rec).label, name: rec.profile.name,
-    quality: { ...quality(rec), dan: danView(rec) }, luck: luck(rec), events: events(rec), exam, chapters: chapters(rec),
+    quality: { ...quality(rec), dan: danView(rec) }, luck: luck(rec), events: events(rec), chapters: chapters(rec),
   };
 }
 
@@ -128,8 +127,8 @@ function danBar(label, value, goal, max, text) {
 function danHTML(d) {
   const nums = d.n ? `直近${d.n}回：正答率 <b>${pct(d.accuracy)}</b>・平均損失 <b>${d.loss.toFixed(2)}BB</b>` : 'まだ数えた判断がありません';
   let note;
-  if (d.level >= MASTER) note = `達人です（称号：優勝 ${d.titles.wins}回・入賞 ${d.titles.cashes}回）。最終試験は何度でも受けられます。`;
-  else if (d.level >= EXAM.needDan) note = '三段です。道場の「最終試験」を受けられます。';
+  if (d.level >= MASTER) note = `達人です（本番大会の優勝 ${d.titles.wins}回・入賞 ${d.titles.cashes}回）。`;
+  else if (d.level >= DAN.steps.length) note = '三段です。';
   else if (!d.all) note = '初段は、全9章に合格してから判定します。';
   else if (d.n < d.need) note = `${d.need}回たまると段位を判定します（指南の段階2以上の判断だけを数えます。自由対局・本番大会では段階2〜5を選ぶと数えられます）。`;
   else {
@@ -140,7 +139,7 @@ function danHTML(d) {
   }
   const bars = d.step && d.n ? danBar('正答率', d.accuracy, d.step.accuracy, 1, pct) + danBar('平均損失', d.loss, d.step.loss, 1, (x) => `${x.toFixed(2)}BB`) : '';
   return `<div class="det dan"><h5>段位の判定（答えを見ずにした判断の直近${d.need}回）</h5>
-    <p>いまの段位 <b>${esc(d.label)}</b>　${nums}　<small>（数えた判断 ${d.n} / ${d.need}回）</small></p>${bars}<p class="small">${esc(note)}</p></div>`;
+    <p>いまの段位 <b>${esc(d.label)}</b>　${nums}　<small>（数えた判断 ${d.n} / ${d.need}回）</small></p>${bars}<p class="small">${esc(note)}</p>${d.level >= MASTER ? '' : `<p class="small">達人まで　本番大会の優勝 ${d.titles.wins} / ${MASTER_WINS}回</p>`}</div>`;
 }
 
 function qualityHTML(q) {
@@ -175,21 +174,20 @@ function luckHTML(l) {
 </div>`;
 }
 
-function eventsHTML(rows, exam) {
+function eventsHTML(rows) {
   // 100大会までの一覧は枠の中でスクロールする（舞台の高さを超えるため）
   const body = rows.length ? `<div class="st-scroll">${table(['日付', '種類', '順位', 'ハンド', '判断', '正答率', '平均損失', '運'], rows)}</div>`
-    : '<p>まだ大会の記録がありません。大会を最後まで打つか、章の対局を「やめて判定する」で終えると、ここに1行ずつ残ります。</p>';
-  const line = exam ? `<p class="st-exam"><b>最終試験</b>　受験${exam.exams}回・合格${exam.passes}回　<b>称号</b>　優勝 ${exam.wins}回・入賞 ${exam.cashes}回</p>` : '';
-  return `<div class="st-tabbody one"><div class="det light">${line}<h5>大会の成績（直近 ${rows.length}大会・新しい順）</h5>${body}</div></div>`;
+    : '<p>まだ大会の記録がありません。自由対局か本番大会を最後まで打つと、ここに1行ずつ残ります。</p>';
+  return `<div class="st-tabbody one"><div class="det light"><h5>大会の成績（直近 ${rows.length}大会・新しい順）</h5>${body}</div></div>`;
 }
 
 function chaptersHTML(c) {
-  return `<div class="st-tabbody one"><div class="det light"><h5>章ごとの成績</h5>${table(['章', '章末試験', '試験の最高点', '対局の最高正答率'], c.rows)}<p>練習問題の正答率（累計）：<b>${esc(c.practice)}</b></p></div></div>`;
+  return `<div class="st-tabbody one"><div class="det light"><h5>章ごとの成績</h5>${table(['章', '章末試験', '試験の最高点'], c.rows)}<p>練習問題の正答率（累計）：<b>${esc(c.practice)}</b></p><p>卒業試験：<b>${esc(c.grad)}</b></p></div></div>`;
 }
 
 export function statsHTML(v) {
   const tabs = STATS_TABS.map(([k, label]) => `<button class="st-tab${k === v.tab ? ' on' : ''}" data-go="stats-tab" data-tab="${k}">${label}</button>`).join('');
-  const body = { quality: () => qualityHTML(v.quality), luck: () => luckHTML(v.luck), events: () => eventsHTML(v.events, v.exam), chapters: () => chaptersHTML(v.chapters) }[v.tab]();
+  const body = { quality: () => qualityHTML(v.quality), luck: () => luckHTML(v.luck), events: () => eventsHTML(v.events), chapters: () => chaptersHTML(v.chapters) }[v.tab]();
   return `<div class="scr st-s">
   <div class="sbar"><button class="back" data-go="title">◀ タイトル</button><h4>成績と統計</h4><span class="sp"></span><span class="medal">${esc(v.rank)}</span>${v.name ? `<span class="who">${esc(v.name)} さん</span>` : ''}</div>
   <div class="st-tabs">${tabs}</div>

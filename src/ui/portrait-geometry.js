@@ -12,11 +12,10 @@ export const PT = {
   board: { cy: 202, w: 46, h: 64, gap: 3 }, // 場の札（縦は卓の場所の約42%）
   pot: { cy: 280, w: 120, h: 22 }, // ポットの額（約58%）
   win: { w: 128, h: 40 }, // 勝負に勝った人の札（役の名前と勝った額の2行。長い役の名前は小さめの字で、この大きさに収める）
-  me: { cx: 222, cy: 458, w: 88, h: 36 }, // あなたの持ち点の名札（卓の一番下＝手元のすぐ上。左下の「やめて判定する」を避けて少し右。段階5-3）
+  me: { cx: 222, cy: 458, w: 88, h: 36 }, // あなたの持ち点の名札（卓の一番下＝手元のすぐ上。段階5-3）
   shown: { w: 40, h: 56, shift: 18, lift: 6 }, // 勝負で見せた札（顔の上に扇。2枚目を18ずらす）
   mark: { w: 116, h: 18 }, // 賭けた額と行動の札（「レイズ 1,300」など）
   dealer: 22,
-  stop: { x: 6, y: 434, w: 170, h: 44 }, // 章の対局の「やめて判定する」（卓の左下）
 };
 
 // 席の位置（表示位置1〜8。PC と同じ順：左下・左中・左上・上の左・上の右・右上・右中・右下）。席の中心
@@ -55,7 +54,6 @@ export const betBox = (disp) => box(`席${disp}の額`, PT_MARKS[disp][0], PT.ta
 export const dealerBox = (disp) => box(`席${disp}のD`, PT_DEALERS[disp][0], PT.table.y + PT_DEALERS[disp][1], PT.dealer, PT.dealer);
 export const winBox = (disp) => box(`席${disp}の勝ち`, PT_WINS[disp][0], PT.table.y + PT_WINS[disp][1], PT.win.w, PT.win.h);
 export const meBox = () => box('あなたの名札', PT.me.cx, PT.table.y + PT.me.cy, PT.me.w, PT.me.h);
-export const stopBox = () => ({ name: 'やめて判定する', x: PT.stop.x, y: PT.table.y + PT.stop.y, w: PT.stop.w, h: PT.stop.h });
 
 export const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 export const inside = (a, o) => a.x >= o.x && a.y >= o.y && a.x + a.w <= o.x + o.w && a.y + a.h <= o.y + o.h;

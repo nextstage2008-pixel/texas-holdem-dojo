@@ -32,7 +32,7 @@ export function addHand(stats, { r, e }) {
 }
 
 // 大会の成績1件。date：端末の暦の日、kind：'free'・'main'・'exam' か章の id、place：順位（やめて判定したときは null）、
-// results：その大会のハンドの結果、verdicts：その大会の判断、exam：最終試験の大会の合否の印（'pass'・'fail'、判定の前の大会は null）
+// results：その大会のハンドの結果、verdicts：その大会の判断、exam：以前の試験の大会の合否の印（'pass'・'fail'・null。古い記録の行だけ）
 export function eventOf({ date, kind, place, results, verdicts, exam }) {
   return {
     date, kind, place, hands: results.length, decisions: verdicts.length, good: verdicts.filter((d) => d.correct).length,

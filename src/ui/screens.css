@@ -294,9 +294,6 @@
 .det .fg-tb{position:relative;z-index:1}
 .small{font-size:12px}
 
-/* 卓の「やめて判定する」 */
-.stopbtn{position:absolute;right:14px;top:122px;z-index:8;cursor:pointer;font:800 13px "Yu Gothic UI",sans-serif;color:#3a2606;padding:8px 14px;border-radius:10px;
-  background:linear-gradient(#ffe794,#cf9c30);border:1px solid #7d5a12;box-shadow:0 3px 0 #7d5a12,0 6px 10px rgba(0,0,0,.3)}
 .ov-card h1.pass{color:#ffe08a;font-size:40px;letter-spacing:.3em}
 
 /* 講義の図：1万回やり直す（第8章） */
@@ -344,7 +341,7 @@
 .st-leak small{display:block;color:#6a5236;font-size:12px}
 .st-leak .go{border:0;border-radius:8px;padding:7px 12px;font-weight:800;color:#3a2606;background:linear-gradient(#ffe9a6,#e2b64a);cursor:pointer}
 .st-leak .go:disabled{cursor:default;opacity:.6}
-/* 成績画面：段位の欄・最終試験の行（段階4-4） */
+/* 成績画面：段位の欄（段階4-4） */
 .st-tabbody.q{align-content:start}
 .st-tabbody.q > .det.dan{grid-column:1/-1}
 .dan-bar{display:grid;grid-template-columns:90px 1fr 250px;gap:12px;align-items:center;margin:6px 0;font-size:14px;position:relative;z-index:1}
@@ -352,4 +349,3 @@
 .dan-bar .track i{position:absolute;left:0;top:0;bottom:0;background:#c79a2c;border-radius:7px}
 .dan-bar .track em{position:absolute;top:-4px;bottom:-4px;width:2px;background:#c0392b}
 .dan-bar b{font-size:17px}
-.st-exam{background:#fff3cf;border:1px solid #c79a2c;border-radius:10px;padding:6px 10px;margin:0 0 8px;position:relative;z-index:1}

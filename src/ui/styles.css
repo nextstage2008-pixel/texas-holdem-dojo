@@ -317,7 +317,6 @@ html,body{margin:0;height:100%;font-family:"Segoe UI","Yu Gothic UI","Hiragino S
 .tb5 div.gone{opacity:.5}
 .fnote{margin:6px 4px 0;padding:4px 8px;border-radius:8px;background:#fff3cf;border:1px solid #c79a2c;font-size:11px;line-height:1.45}
 .flash{position:absolute;left:50%;top:118px;transform:translateX(-50%);z-index:6;padding:8px 18px;border-radius:12px;background:linear-gradient(#8a5a34,#45290f);color:#ffe9a6;border:2px solid #d6b25a;font:800 15px "Yu Mincho",serif;white-space:nowrap;box-shadow:0 8px 18px rgba(40,25,10,.4)}
-/* 最終試験の達人の祝いの札・昇段のお知らせ（段階4-4） */
-.ov-card .tatsujin{width:120px;height:120px;margin:4px auto 10px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3b8,#e5b740 45%,#9a6a12);border:4px solid #f6dc8a;box-shadow:0 0 0 3px #6b4a12,0 8px 18px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font:900 40px/1 "Yu Mincho",serif;color:#4a2c08;letter-spacing:.04em}
+/* 昇段のお知らせ（段階4-4） */
 .ov-card .promote{margin:8px 0 14px;padding:8px 12px;border-radius:10px;background:#fff3cf;color:#3b2416;border:1px solid #c79a2c;font-weight:800}
 .ov-card .promote small{display:block;font-weight:400;font-size:11.5px;margin-top:2px}

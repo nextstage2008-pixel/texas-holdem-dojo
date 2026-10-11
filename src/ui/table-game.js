@@ -1,16 +1,11 @@
-// 卓のゲームの進行（自由対局・章の指南つき対局・本番大会・最終試験）。CPUの行動に間を置き、あなたの番ではコーチの分析を出してボタンを待つ。
-// opts：{ mode（'free'|'chapter'|'main'|'exam'）, heroName, coach（続きの指南の状態）,
-//         resume（本番大会・最終試験の続き：mainSnapshot の形か null）,
-//         onSave(snapshot)（本番大会・最終試験：ハンドを配る前・あなたが行動するたび・ハンドの結果の帯を出す前に呼ぶ。続きの保存に使う）,
-//         onAbandon()（本番大会を「この大会を終わりにする」・最終試験を「この試験を終わりにする」でやめたとき）,
-//         exam（最終試験：この受験の途中 { decisions（足してきた判断の列）, tournaments, places, master（受験の前から達人か）}）,
-//         onExamEnd({ verdicts, place, results })（試験の大会が終わったとき。dojo/actions.js の finishExamTournament の結果を返す）,
-//         onExamRestart()（不合格・達人の受け直しで、新しい受験を始めるとき。新しい受験の途中を返す）,
-//         chapter（章の対局のとき：{ id, label, seal, hideTypes, note（始め方の説明か null）,
-//                  setup()（大会を始めるたびに呼ぶ。{ players, hideTypes, stacks, places, startLevel }）}）,
-//         onHand(session, coachMode, decisions, { result, verdicts })（1ハンドごと。保存に使う。decisions は続けた大会の分も含む判断の列、
+// 卓のゲームの進行（自由対局・本番大会）。CPUの行動に間を置き、あなたの番ではコーチの分析を出してボタンを待つ。
+// opts：{ mode（'free'|'main'）, heroName, coach（続きの指南の状態）,
+//         resume（本番大会の続き：mainSnapshot の形か null）,
+//         onSave(snapshot)（本番大会：ハンドを配る前・あなたが行動するたび・ハンドの結果の帯を出す前に呼ぶ。続きの保存に使う）,
+//         onAbandon()（本番大会を「この大会を終わりにする」でやめたとき）,
+//         onHand(session, coachMode, decisions, { result, verdicts })（1ハンドごと。保存に使う。decisions はその大会の判断の列、
 //           result はそのハンドの結果（handResult。出せなければ null）、verdicts はそのハンドの判断）,
-//         onTournament(event)（大会が終わった・やめて判定したとき。dojo/stats.js の eventOf の1件。自由対局をメニューからやめたときは呼ばない。
+//         onTournament(event)（大会が終わったとき。dojo/stats.js の eventOf の1件。自由対局をメニューからやめたときは呼ばない。
 //           昇段したら { label, quality, step } を返す。終わりの札に「昇段しました」と出す）,
 //         onEnd(info)（大会が終わった・やめたとき）, onExit()（メニューから戻る）,
 //         sound（音の指揮役 ui/sound.js。なければ鳴らさない）, soundOn()（音を出すか）, onToggleSound()（卓の右上のボタン。切り替えたあとの入／切を返す）,
@@ -29,7 +24,7 @@ import { fmt, esc } from './format.js';
 import { resultPanelHTML } from './result-banner.js';
 import { buildCoachView, buildReport } from './coach-view.js';
 import {
-  reportHTML, luckLineHTML, mainEndHTML, examStartHTML, examEndHTML, examLeaks, tatsujinHTML, promoteHTML,
+  reportHTML, luckLineHTML, mainEndHTML, promoteHTML,
 } from './coach-panel.js';
 import { createOverlayMemo } from './overlay.js';
 import { gridCells, gridHTML } from './range-grid.js';
@@ -44,8 +39,7 @@ import { coachShows } from '../coach/levels.js';
 import { canRepeat, repeatAnalysis, repeatSeed } from '../coach/repeat.js';
 import { prizeShare } from '../engine/tournament.js';
 import { legalActions } from '../engine/hand.js';
-import { tallyOf, judgeGame, continueGame, createCarry, createResultBook } from '../dojo/chapter-game.js';
-import { GAME_RULE, chapterOf } from '../dojo/chapters.js';
+import { createResultBook } from '../game/result-book.js';
 import { eventOf } from '../dojo/stats.js';
 import { localDate } from '../dojo/dates.js';
 import {
@@ -98,21 +92,19 @@ export const NOT_NEXT = 'button:not([disabled]), .rb, .overlay, .pt-sheet, .pt-d
 const MODES = [1, 2, 3, 4, 5].map((n) => `<button class="mb" data-start="${n}">段階${n}</button>`).join('');
 
 export function createTableGame(stage, opts) {
-  const chapter = opts.mode === 'chapter' ? opts.chapter : null;
-  const exam = opts.mode === 'exam';
-  const main = opts.mode === 'main' || exam; // 最終試験も本番大会と同じ多卓の大会の流れ
+  const main = opts.mode === 'main';
   const parts = tablePartsFor(stage.dataset.layout);
   const portrait = parts.mount === mountPortraitShell;
   const refs = parts.mount(stage, {
-    mark: chapter ? chapter.seal : exam ? '試験' : main ? '本番' : '自由', name: opts.heroName,
-    sub: chapter ? chapter.label : exam ? '最終試験' : main ? '本番大会' : '自由対局',
+    mark: main ? '本番' : '自由', name: opts.heroName,
+    sub: main ? '本番大会' : '自由対局',
   });
   const dial = parts.control(refs.dial, { onChange: () => draw() });
   const ui = {
     dial, fast: false, result: null, tab: 'coach', freshDial: false, coachView: null,
-    band: chapter ? `${chapter.label}　指南つき対局・早回し` : exam ? '最終試験' : main ? '本番大会' : '自由対局　9人・上位3人入賞',
+    band: main ? '本番大会' : '自由対局　9人・上位3人入賞',
     notices: [], flash: null, // 本番大会の卓の移動のお知らせ（欄の下・卓の上の帯）
-    exam: null, grid: null, // 描くたびに入れる：最終試験の受験の数・縦の板の手の表
+    grid: null, // 描くたびに入れる：縦の板の手の表
   };
   const memo = createOverlayMemo(); // メニューの確認の札の前に出ていた札
   const gate = createClickGate(250); // 手番のボタンが出た直後の二度押しを無視する
@@ -123,20 +115,16 @@ export function createTableGame(stage, opts) {
   let runId = 0;
   let ended = false;
   let coach = { ...IDLE };
-  // 第5・6章：判断20回に届く前に終わった大会の判断（次の大会に足していく）
-  const book = createCarry();
-  const allDecisions = () => book.all(session ? session.decisions : []);
+  // この大会の判断の列
+  const allDecisions = () => (session ? session.decisions : []);
   // ハンドの結果（運と実力）と、大会の成績を1大会に1回だけ残すための帳簿
   const results = createResultBook();
   // 大会の成績を残す。昇段したら昇段の中身（promoteHTML に渡す形）を返す
   function recordTour(place) {
     const tour = results.close();
     if (!tour || !session) return null;
-    return opts.onTournament?.(eventOf({ date: localDate(new Date()), kind: chapter ? chapter.id : main ? 'main' : 'free', place, results: tour, verdicts: session.decisions })) ?? null;
+    return opts.onTournament?.(eventOf({ date: localDate(new Date()), kind: main ? 'main' : 'free', place, results: tour, verdicts: session.decisions })) ?? null;
   }
-  // 最終試験：この受験で前の大会までに足してきた判断・終えた大会の数・その順位（設計書 段階4-4 第4節）
-  let attempt = { decisions: [], tournaments: 0, places: [], master: false, ...(opts.exam ?? {}) };
-  const attemptDecisions = () => [...attempt.decisions, ...(session ? session.decisions : [])];
 
   const heroOut = () => session.hand && session.hand.seats[HERO_SEAT].folded;
   const speed = () => manualFast || heroOut();
@@ -209,7 +197,7 @@ export function createTableGame(stage, opts) {
     if (!session) return;
     if (motion.busy()) motion.skip(); // 動いている途中に描き直すときは、動きを最後まで飛ばしてから（位置がずれたまま動かさない）
     ui.fast = speed();
-    if (main) ui.band = `${exam ? '最終試験' : '本番大会'}　${session.main.field.final ? '決勝卓' : `卓${session.main.table + 1}`}`;
+    if (main) ui.band = `本番大会　${session.main.field.final ? '決勝卓' : `卓${session.main.table + 1}`}`;
     try {
       ui.coachView = buildCoachView({
         ...coach, coach: coachForView(session), players: session.tournament.players, typeOf: shownTypeOf(session),
@@ -219,14 +207,9 @@ export function createTableGame(stage, opts) {
       console.error(e);
       ui.coachView = buildCoachView({ ...IDLE, coach: coachForView(session), players: session.tournament.players, typeOf: shownTypeOf(session), error: 'コーチ欄を表示できませんでした' });
     }
-    // 試験中は指南なし：コーチ欄は受験の判断の数だけ
-    ui.exam = exam ? { decisions: attemptDecisions().length, tournaments: attempt.tournaments } : null;
     // 縦の並べ方の板の「手の表」のタブ
     ui.grid = portrait ? gridOf(coach.analysis, session.tournament.players) : null;
     parts.render(refs, viewFor(buildView(session), waitingHero), ui);
-    const n = allDecisions().length;
-    refs.stop.hidden = !chapter || ended || n < GAME_RULE.minDecisions;
-    refs.stop.textContent = `やめて判定する（判断${n}回）`;
   }
 
   function showOverlay(html, kind = 'menu') {
@@ -251,11 +234,9 @@ export function createTableGame(stage, opts) {
     wake = null;
     lastPanel = false;
     motion.skip();
-    // 第5・6章は、繰り越した判断を残したまま次の大会を始める（段階4-2 第8節）
-    const keep = chapter && chapterOf(chapter.id).keepGoing;
-    // 本番大会・最終試験は、最後の保存から続けられる（タイトルの「本番大会」・道場の「最終試験」から）
-    const again = main ? '' : keep ? '<button class="mb" data-start="next">次の大会から続ける</button>' : '<button class="mb" data-start="again">もう一度始める</button>';
-    const where = exam ? '続きは、道場の「最終試験」から始められます。' : main ? '続きは、タイトルの「本番大会」から始められます。' : '';
+    // 本番大会は、最後の保存から続けられる（タイトルの「本番大会」から）
+    const again = main ? '' : '<button class="mb" data-start="again">もう一度始める</button>';
+    const where = main ? '続きは、タイトルの「本番大会」から始められます。' : '';
     showOverlay(`<h1>問題が起きました</h1><p>ゲームの進行中にエラーが出たため止めました。${where}<br><small>${esc(String(e?.message ?? e))}</small></p>${again}<button class="mb" data-exit="1">戻る</button>`);
   }
 
@@ -281,7 +262,7 @@ export function createTableGame(stage, opts) {
   async function play(myRun) {
     while (myRun === runId) {
       if (main) {
-        // 本番大会・最終試験：配る前に続きを保存する（あなたが行動するたびにも保存し、閉じた所から続ける）
+        // 本番大会：配る前に続きを保存する（あなたが行動するたびにも保存し、閉じた所から続ける）
         opts.onSave?.(mainSnapshot(session, results.all()));
         session = dealMain(session);
       } else session = dealNext(session);
@@ -306,8 +287,8 @@ export function createTableGame(stage, opts) {
     }
   }
 
-  // 終わったときの札。reason：'bust'（敗退）・'win'（優勝）・'stop'（やめて判定）
-  // outcome：本番大会・最終試験の結果（mainOutcome）、done：closeMainHand で済ませた記録（{ promoted, examEnd }）
+  // 終わったときの札。reason：'bust'（敗退）・'win'（優勝）
+  // outcome：本番大会の結果（mainOutcome）、done：closeMainHand で済ませた記録（{ promoted }）
   function endGame(reason, outcome = null, done = {}) {
     ended = true;
     runId++;
@@ -317,47 +298,18 @@ export function createTableGame(stage, opts) {
     lastPanel = false;
     coach = { ...coach, phase: 'idle', analysis: null, verdict: null };
     draw();
-    if (exam) {
-      showExamEnd(outcome, done.examEnd);
-      return;
-    }
     const report = reportHTML(buildReport(allDecisions(), session.coach)) + luckLineHTML(results.all());
     if (main) {
       showOverlay(`${mainEndHTML(outcome, report)}${promoteHTML(done.promoted)}<button class="mb" data-start="again">もう一度</button><button class="mb" data-exit="1">タイトルへ</button>`);
       return;
     }
     const me = session.tournament.players[HERO_SEAT];
-    const promoted = recordTour(reason === 'stop' ? null : me.place);
-    if (chapter) {
-      const tally = tallyOf(allDecisions());
-      const j = judgeGame(tally);
-      opts.onEnd({ kind: 'chapter', tally, judge: j, coach: session.coach });
-      const head = reason === 'stop' ? 'やめて判定しました' : me.place === 1 ? '優勝！' : `${me.place}位で終わりました`;
-      const verdict = j.passed
-        ? `<h1 class="pass">合格</h1><p>判断${tally.decisions}回・正答率 ${Math.round(j.accuracy * 100)}%。章末試験に進めます。</p>`
-        : `<h1>もう一歩</h1><p>判断${tally.decisions}回・正答率 ${Math.round(j.accuracy * 100)}%（合格は判断${GAME_RULE.minDecisions}回以上で${Math.round(GAME_RULE.passAccuracy * 100)}%以上）。</p>`;
-      showOverlay(`<h3>${head}</h3>${verdict}<h3>判断の成績</h3>${report}${promoteHTML(promoted)}<button class="mb" data-exit="1">道場へ戻る</button><button class="mb" data-start="again">もう一度</button>`);
-      return;
-    }
+    const promoted = recordTour(me.place);
     opts.onEnd({ kind: 'free', coach: session.coach, coachMode });
     const share = prizeShare(session.tournament, me.place);
     const title = me.place === 1 ? '優勝！' : share > 0 ? `${me.place}位入賞` : `${me.place}位で敗退`;
     const detail = share > 0 ? `賞金の${Math.round(share * 100)}%を獲得しました` : '入賞は3位までです。もう一度挑戦しましょう';
     showOverlay(`<h1>${title}</h1><p>${detail}（${session.tournament.handNumber}ハンド）</p><h3>判断の成績</h3>${report}${promoteHTML(promoted)}<button class="mb" data-start="again">もう一度</button><button class="mb" data-exit="1">タイトルへ</button>`);
-  }
-
-  // 試験の大会の終わりの札。r：onExamEnd の結果 { result, tally, promoted }
-  function showExamEnd(outcome, r) {
-    const all = attemptDecisions();
-    const report = reportHTML(buildReport(all, session.coach), { noCoach: true }) + luckLineHTML(results.all());
-    const places = [...attempt.places, outcome.place];
-    const counted = r.result === 'pass' || (r.result === 'fail' && attempt.master);
-    const titles = counted ? { wins: places.filter((p) => p === 1).length, cashes: places.filter((p) => p <= 6).length } : null;
-    const leaks = r.result === 'fail' ? examLeaks(all) : [];
-    const dan = r.promoted && r.promoted.to < 4 ? promoteHTML(r.promoted) : '';
-    showOverlay(`${examEndHTML(outcome, { result: r.result, tally: r.tally, report, titles, leaks, master: attempt.master })}${dan}`);
-    // 次の試験の大会に足していく（100回に届かなかったとき）
-    if (r.result === 'continue') attempt = { ...attempt, decisions: all.map(({ situation, loss, correct }) => ({ situation, loss, correct })), tournaments: attempt.tournaments + 1, places };
   }
 
   // 本番大会のハンドの終わり：ほかの卓のハンドを打って卓を動かし、ハンドの記録と続きの保存（大会が終わったら大会の記録）まで済ませる。
@@ -378,11 +330,6 @@ export function createTableGame(stage, opts) {
     const done = f.finished ? f : finishMain(closed.session).main.field;
     const outcome = mainOutcome(done, f.round);
     ended = true;
-    if (exam) {
-      // 最終試験：大会の成績と受験の判断を記録し、100回を超えていれば合否を決める（dojo/actions.js の finishExamTournament）
-      const examEnd = opts.onExamEnd({ verdicts: closed.session.decisions, place: outcome.place, results: results.close() ?? [] });
-      return { session: closed.session, texts, outcome, examEnd };
-    }
     const promoted = recordTour(outcome.place);
     opts.onEnd({ kind: 'main', coach: closed.session.coach, coachMode, place: outcome.place });
     return { session: closed.session, texts, outcome, promoted };
@@ -409,7 +356,7 @@ export function createTableGame(stage, opts) {
     const verdicts = session.decisions.filter((d) => d.handNo === handNo);
     const closed = main ? closeMainHand(result, verdicts) : null;
     const after = main ? null : closeHand(session); // 閉じた形を先に作る（札の下のボタンを決め、記録に使う。卓の形を入れ替えるのは押したあと）
-    // 自由対局・章の対局：ハンドの記録は札を出す前に済ませる（札の所で閉じたりやめたりしても、そのハンドを数える。本番大会の closeMainHand と同じ）
+    // 自由対局：ハンドの記録は札を出す前に済ませる（札の所で閉じたりやめたりしても、そのハンドを数える。本番大会の closeMainHand と同じ）
     if (!main) {
       if (result) results.add(result);
       opts.onHand?.(after, coachMode, allDecisions(), { result, verdicts });
@@ -436,23 +383,7 @@ export function createTableGame(stage, opts) {
     session = after;
     const me = session.tournament.players[HERO_SEAT];
     if (!session.tournament.finished && me.stack > 0) return;
-    if (chapter && continueGame(chapter.id, tallyOf(allDecisions()))) offerNext(me);
-    else endGame(me.place === 1 ? 'win' : 'bust');
-  }
-
-  // 第5・6章：判断20回に届く前に大会が終わった。同じ形の次の大会を続ける（判断の数は足していく）
-  function offerNext(me) {
-    runId++;
-    waitingHero = false;
-    ui.result = null;
-    wake = null;
-    lastPanel = false;
-    coach = { ...coach, phase: 'idle', analysis: null, verdict: null };
-    draw();
-    const promoted = recordTour(me.place);
-    const head = me.place === 1 ? '優勝！' : `${me.place}位で終わりました`;
-    showOverlay(`<h3>${head}</h3><p>ここまで判断${allDecisions().length}回。判断${GAME_RULE.minDecisions}回に届くまで、同じ形の次の大会を続けます（判断の数は足していきます）。</p>${promoteHTML(promoted)}
-      <button class="mb main" data-start="next">次の大会へ</button><button class="mb" data-quit="1">やめて判定する</button>`);
+    endGame(me.place === 1 ? 'win' : 'bust');
   }
 
   async function resumeAfterHero(myRun) {
@@ -499,7 +430,7 @@ export function createTableGame(stage, opts) {
       session = act(session, action);
       coach = { ...coach, phase: 'idle', analysis: null };
     }
-    // 本番大会・最終試験：行動するたびに続きを保存する（閉じても、閉じた所から続く。設計書 段階4-4 第6節）
+    // 本番大会：行動するたびに続きを保存する（閉じても、閉じた所から続く。設計書 段階4-4 第6節）
     if (main) opts.onSave?.(mainSnapshot(session, results.all()));
     run(async (myRun) => {
       await show(prev, stepCues(), f);
@@ -524,12 +455,10 @@ export function createTableGame(stage, opts) {
     drawRepeat(null);
   }
 
-  // mode：'auto'・1〜5（自由対局の指南）／'chapter'（章の対局を始める）／'again'（もう一度）／'next'（第5・6章の次の大会）
+  // mode：'auto'・1〜5（自由対局の指南）／'again'（もう一度）
   // 本番大会を始める：'auto'・1〜5（指南の段階を選ぶ）／'again'（もう一度）／'resume'（続きから）
-  // 最終試験：'exam'（受験の大会を始める）／'exam-next'（100回に届くまで次の大会）／'exam-again'（新しい受験）／'resume'（続きから）
   function startMain(mode) {
-    if (!exam && mode !== 'again' && mode !== 'resume') coachMode = mode === 'auto' ? 'auto' : Number(mode);
-    if (mode === 'exam-again') attempt = { decisions: [], tournaments: 0, places: [], master: attempt.master, ...(opts.onExamRestart?.() ?? {}) };
+    if (mode !== 'again' && mode !== 'resume') coachMode = mode === 'auto' ? 'auto' : Number(mode);
     runId++;
     ended = false;
     hideOverlay();
@@ -556,36 +485,27 @@ export function createTableGame(stage, opts) {
         flash('前のハンドは初めからやり直します（続きの場面が合わなかったため）');
       }
     } else {
-      session = createMainSession({ seed: Date.now() % 2147483647, coachMode, coach: coachMode === 'auto' ? (session?.coach ?? opts.coach) : null, heroName: opts.heroName, exam });
+      session = createMainSession({ seed: Date.now() % 2147483647, coachMode, coach: coachMode === 'auto' ? (session?.coach ?? opts.coach) : null, heroName: opts.heroName });
     }
     run(play);
   }
 
   function start(mode) {
     if (main) { startMain(mode); return; }
-    if (mode !== 'again' && mode !== 'next' && !chapter) coachMode = mode === 'auto' ? 'auto' : Number(mode);
-    // 次の大会へ：終わった大会の判断を繰り越してから、新しい大会を作る。ほかは数え直す
-    if (mode === 'next' && session) book.carry(session.decisions);
-    else book.reset();
-    results.start(mode === 'next');
+    if (mode !== 'again') coachMode = mode === 'auto' ? 'auto' : Number(mode);
+    results.start(false);
     runId++;
     ended = false;
     hideOverlay();
-    // 章の対局は、始めるたびに顔ぶれと始め方を作り直す。自由対局は、始めるたびに44人から8人を選び直す（設計書 段階5-5 第3節）
+    // 自由対局は、始めるたびに44人から8人を選び直す（設計書 段階5-5 第3節）
     const seed = Date.now() % 2147483647;
-    const st = chapter ? chapter.setup() : opts.mode === 'free' ? freeSetup(seed) : null;
+    const st = freeSetup(seed);
     session = createSession({
       seed,
-      coachMode: chapter ? 'auto' : coachMode,
-      coach: chapter || coachMode === 'auto' ? (session?.coach ?? opts.coach) : null,
+      coachMode,
+      coach: coachMode === 'auto' ? (session?.coach ?? opts.coach) : null,
       heroName: opts.heroName,
       players: st?.players,
-      hideTypes: st?.hideTypes ?? false,
-      stacks: st?.stacks ?? null,
-      places: st?.places ?? null,
-      startLevel: st?.startLevel ?? 0,
-      handsPerLevel: chapter ? GAME_RULE.handsPerLevel : 8,
-      minLevel: chapter ? GAME_RULE.minCoachLevel : 1,
     });
     coach = { ...IDLE };
     waitingHero = false;
@@ -593,23 +513,16 @@ export function createTableGame(stage, opts) {
   }
 
   function confirmExit() {
-    // 大会がそのハンドで終わる結果の札（「結果へ」）が出ている間は、「結果へ」と同じ（終わりの札・大会の成績・試験の合否を飛ばさない）
+    // 大会がそのハンドで終わる結果の札（「結果へ」）が出ている間は、「結果へ」と同じ（終わりの札・大会の成績を飛ばさない）
     if (wake && lastPanel) { wake(); return; }
     if (ended) { opts.onExit(); return; }
     memo.keep(currentOverlay()); // 「続ける」で、いま出ている札（「次の大会へ」の札など）に戻す
-    if (exam) {
-      showOverlay(`<h3>最終試験をやめますか？</h3><p>中断すると、道場の「最終試験」から続きを始められます（閉じた所から続きます）。終わりにすると、この受験はなかったことになります（合否に数えません）。</p>
-        <button class="mb main" data-suspend="1">中断する（あとで続ける）</button><button class="mb" data-abandon="1">この試験を終わりにする</button><button class="mb" data-back="1">続ける</button>`);
-      return;
-    }
     if (main) {
       showOverlay(`<h3>本番大会をやめますか？</h3><p>中断すると、タイトルの「本番大会」から続きを始められます（閉じた所から続きます）。終わりにした大会は、大会の成績に残りません。</p>
         <button class="mb main" data-suspend="1">中断する（あとで続ける）</button><button class="mb" data-abandon="1">この大会を終わりにする</button><button class="mb" data-back="1">続ける</button>`);
       return;
     }
-    const n = allDecisions().length;
-    const note = chapter ? `ここまでの判断${n}回で判定します（判断${GAME_RULE.minDecisions}回に届いていなければ不合格）。` : 'この大会は記録されません。';
-    showOverlay(`<h3>対局をやめますか？</h3><p>${note}</p><button class="mb" data-quit="1">やめる</button><button class="mb" data-back="1">続ける</button>`);
+    showOverlay(`<h3>対局をやめますか？</h3><p>この大会は記録されません。</p><button class="mb" data-quit="1">やめる</button><button class="mb" data-back="1">続ける</button>`);
   }
 
   refs.buttons.addEventListener('click', (e) => {
@@ -625,7 +538,6 @@ export function createTableGame(stage, opts) {
     muteIcon();
   });
   refs.menu.addEventListener('click', confirmExit);
-  refs.stop.addEventListener('click', () => { if (wake && lastPanel) { wake(); return; } endGame('stop'); });
   refs.tabs.addEventListener('click', (e) => {
     const b = e.target.closest('[data-tab]');
     if (b) { ui.tab = b.dataset.tab; draw(); }
@@ -649,7 +561,6 @@ export function createTableGame(stage, opts) {
     const s = e.target.closest('[data-start]');
     if (s) start(s.dataset.start);
     if (e.target.closest('[data-close]')) hideOverlay();
-    if (e.target.closest('[data-master]')) showOverlay(tatsujinHTML(opts.heroName));
     if (e.target.closest('[data-back]')) {
       const prev = memo.back();
       if (prev) {
@@ -664,30 +575,19 @@ export function createTableGame(stage, opts) {
     const rp = e.target.closest('[data-rp]');
     if (rp && repeatCtx) drawRepeat(Number(rp.dataset.rp));
     if (e.target.closest('[data-exit]')) opts.onExit();
-    if (e.target.closest('[data-quit]')) {
-      if (chapter && session) endGame('stop');
-      else { runId++; opts.onExit(); }
-    }
+    if (e.target.closest('[data-quit]')) { runId++; opts.onExit(); }
   });
   fitStage(stage);
 
   if (main && opts.resume) {
-    showOverlay(`<h1>${exam ? '最終試験' : '本番大会'}の続き</h1><p>${esc(resumeLabel(opts.resume.field))}から続けます（閉じた所から続きます）。</p>
-      <button class="mb main" data-start="resume">続きから</button><button class="mb" data-exit="1">${exam ? '道場へ戻る' : 'タイトルへ'}</button>`);
-  } else if (exam) {
-    showOverlay(examStartHTML({ decisions: attempt.decisions.length, tournaments: attempt.tournaments }));
+    showOverlay(`<h1>本番大会の続き</h1><p>${esc(resumeLabel(opts.resume.field))}から続けます（閉じた所から続きます）。</p>
+      <button class="mb main" data-start="resume">続きから</button><button class="mb" data-exit="1">タイトルへ</button>`);
   } else if (main) {
     showOverlay(`<h1>本番大会</h1><p>45人・9人×5卓・上位6人入賞・開始20,000点（10ハンドごとにブラインドが上がる）</p>
 <p>指南（コーチ）の段階を選んで始めます。途中で閉じても、タイトルの「本番大会」から続きを始められます</p>
 <div class="modes"><button class="mb main" data-start="auto">自動で始める（おすすめ）</button>${MODES}</div>
 <p><small>1：行動の前に最善手と理由　2：考えるきっかけ→行動の後に正誤　3：間違えた時だけ指摘<br>4：ハンドの後に振り返り　5：大会の後に成績だけ　自動：場面ごとに上達に合わせて段階を進めます</small></p>
 <button class="mb" data-exit="1">タイトルへ</button>`);
-  } else if (chapter) {
-    showOverlay(`<h1>${esc(chapter.label)}　指南つき対局</h1><p>9人のトーナメント・早回し（${GAME_RULE.handsPerLevel}ハンドごとにブラインドが上がる）<br>
-      判断${GAME_RULE.minDecisions}回以上で正答率${Math.round(GAME_RULE.passAccuracy * 100)}%以上なら合格。判断${GAME_RULE.minDecisions}回を超えたら、いつでも「やめて判定する」で終われます。</p>
-      ${chapter.note ? `<p>${esc(chapter.note)}<br>判断${GAME_RULE.minDecisions}回に届く前に大会が終わったら、同じ形の次の大会を続けます。</p>` : ''}
-      ${chapter.hideTypes ? '<p>この章では相手のタイプを伏せます（コーチ欄は「？」）。</p>' : ''}
-      <button class="mb main" data-start="chapter">始める</button><button class="mb" data-exit="1">戻る</button>`);
   } else {
     showOverlay(`<h1>自由対局</h1><p>9人のトーナメント・上位3人入賞・開始20,000点</p>
 <p>指南（コーチ）の段階を選んで始めます</p>

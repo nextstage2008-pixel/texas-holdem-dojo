@@ -95,14 +95,14 @@ body.rotate #rotate{display:flex}
 .pt .shown .cd .pip{font-size:20px;top:64%}.pt .shown .cd .face{inset:24px 6px 4px;font-size:12px}.pt .shown .cd .face i{font-size:11px}
 .pt .shown .cd .ix.b{display:none}
 .pt .shown.win{filter:drop-shadow(0 0 6px rgba(255,224,138,.95))}
-/* 賭けた額と行動の札・ディーラーの印・ポット・結果の帯・お知らせ・やめて判定する */
+/* 賭けた額と行動の札・ディーラーの印・ポット・結果の帯・お知らせ */
 .pt .pmark{position:absolute;transform:translate(-50%,-50%);z-index:4;max-width:116px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   font:800 11px/12px "Yu Gothic UI","Segoe UI",sans-serif;color:var(--gold-l);background:rgba(10,6,3,.66);padding:2px 7px;border-radius:9px;border:1px solid rgba(255,229,160,.4)}
 .pt .dealer{width:22px;height:22px;font:800 11px/22px Georgia,serif}
 .pt .pt-pot{position:absolute;left:50%;top:280px;transform:translate(-50%,-50%);z-index:3;max-width:120px;white-space:nowrap;
   font:800 12px/16px "Segoe UI",sans-serif;color:var(--gold-l);background:rgba(10,6,3,.62);padding:2px 12px;border-radius:11px;border:1px solid rgba(255,229,160,.4)}
 /* ハンドの結果の札（段階5-5）：手元の下に付けて上へ伸びる（額の所とボタンの上。人が多いときは手札の上まで） */
-/* 結果の札：場の札の下で左右の席の間。下の端は「やめて判定する」（434）より上 */
+/* 結果の札：場の札の下で左右の席の間。下の端はあなたの名札（上の端 440）より上 */
 .pt .rs-panel{left:76px;right:76px;top:238px;bottom:auto;max-height:194px;width:auto;margin-left:0;padding:8px 12px;gap:4px}
 .pt .rs-who{gap:6px}
 /* 2人以上の行は詰める（3人のサイドポット・5人の分け合いも、高さの上限 194 に収める） */
@@ -121,7 +121,6 @@ body.rotate #rotate{display:flex}
 .pt .winpill.long{font-size:11px}
 .pt .winpill small{font-size:12px}
 .pt .flash{top:118px;max-width:300px;white-space:normal;text-align:center;font-size:13px}
-.pt .stopbtn{left:6px;right:auto;top:434px;height:44px;max-width:170px;padding:0 10px;font-size:11px;line-height:1.25}
 /* コーチの帯（中身は .cstrip） */
 .pt .pt-strip{position:absolute;left:8px;right:8px;top:556px;height:48px;z-index:8}
 /* 手元：手札61×86・手の説明と額・額の部品・行動のボタン3つ */
@@ -186,7 +185,6 @@ body.rotate #rotate{display:flex}
 .pt .report{width:100%;font-size:11px}
 .pt .report th,.pt .report td{padding:4px 3px}
 .pt .luckline{font-size:12px}
-.pt .ov-card .tatsujin{width:96px;height:96px}
 .pt .ov-card .promote small{font-size:11px}
 .pt .grid-card{padding:12px 6px}
 .pt .grid-card h2{font-size:15px}

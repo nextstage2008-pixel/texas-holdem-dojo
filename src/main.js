@@ -21,17 +21,14 @@ import { loadRecord, serialize, exportFileName, inspectImport, emptyRecord } fro
 import { localDate } from './dojo/dates.js';
 import * as A from './dojo/actions.js';
 import { validateName } from './dojo/name.js';
-import { resumeTarget, currentChapter, chapterState } from './dojo/progress.js';
+import { resumeTarget, currentChapter, chapterState, gradState } from './dojo/progress.js';
 import { lectureOf } from './dojo/lectures/chapters.js';
-import { practiceList, testList, gradeTest } from './dojo/quiz.js';
+import { practiceList, testList, gradeTest, graduationList } from './dojo/quiz.js';
 import { cachedQuestion } from './dojo/questions/index.js';
 import { dueToday } from './dojo/reviews.js';
-import { chapterSetup, startNote, tallyOf } from './dojo/chapter-game.js';
-import { chapterOf, chapterLabel, PRACTICE_COUNT } from './dojo/chapters.js';
-import { createRng } from './engine/rng.js';
+import { PRACTICE_COUNT, GRAD } from './dojo/chapters.js';
 import { resumeLabel } from './game/main-event.js';
-import { nextStep, MASTER } from './dojo/ranks.js';
-import { canTakeExam } from './dojo/exam.js';
+import { nextStep } from './dojo/ranks.js';
 import { createAudio, bindUnlock } from './ui/audio.js';
 import { createSound } from './ui/sound.js';
 import { soundSettings, withSound } from './dojo/sound-settings.js';
@@ -68,13 +65,6 @@ let rec;
   if (loaded.keep) storage.disable();
   if (loaded.notice) notices.push(loaded.notice);
   else if (!storage.usable) notices.push('このブラウザでは記録を保存できません（プライベートモードなど）。遊ぶことはできますが、閉じると記録は残りません。');
-  const settled = A.settlePendingGame(rec);
-  if (settled.settled) {
-    const s = settled.settled;
-    notices.push(`前回途中で閉じた${chapterLabel(s.chapter)}の対局を判定しました：${s.passed ? '合格' : '不合格'}（正答率 ${Math.round(s.accuracy * 100)}%）`);
-    rec = settled.record;
-    save();
-  }
 }
 function commit(next) {
   rec = next;
@@ -213,9 +203,24 @@ function goStep(ch, kind) {
     const t = rec.chapters[ch].test;
     const list = testList(ch, t.seed);
     show({ name: 'quiz', mode: 'test', ch, list, index: t.answers.length, correct: 0, chosen: null, q: questionAt(list, t.answers.length) });
-  } else if (kind === 'game') {
-    startChapterGame(ch);
   }
+}
+
+// 卒業試験（2026-10-12）：全9章の合格で開く。途中があれば続きから
+function goGrad() {
+  if (!gradState(rec).open) { show({ name: 'dojo', selected: 'grad' }); return; }
+  if (!rec.graduation.test) commit(A.startGraduation(rec, newSeed()));
+  const t = rec.graduation.test;
+  const list = graduationList(t.seed);
+  show({ name: 'quiz', mode: 'grad', ch: null, list, index: t.answers.length, correct: 0, chosen: null, q: questionAt(list, t.answers.length) });
+}
+
+function finishGrad(s) {
+  const questions = s.list.map(cachedQuestion);
+  const graded = gradeTest(questions, rec.graduation.test.answers, GRAD.pass);
+  const r = A.finishGraduation(rec, graded, today());
+  commit(r.record);
+  show({ name: 'result', view: { grad: true, score: graded.score, passed: graded.passed, firstPass: r.firstPass, wrong: wrongList(questions, graded.results) } });
 }
 
 function startReview() {
@@ -242,6 +247,16 @@ function choose(i) {
     finishTest(s);
     return;
   }
+  if (s.mode === 'grad') {
+    commit(A.answerGraduation(rec, i));
+    if (s.index + 1 < s.list.length) {
+      screen = { ...s, index: s.index + 1, q: questionAt(s.list, s.index + 1) };
+      render();
+      return;
+    }
+    finishGrad(s);
+    return;
+  }
   screen = { ...s, chosen: i, correct: s.correct + (ok ? 1 : 0) };
   render();
 }
@@ -255,7 +270,7 @@ function nextQuestion() {
   }
   if (s.mode === 'practice') {
     show({ name: 'dojo', selected: s.ch });
-    dialog('練習問題を解き終えました', `<p>${PRACTICE_COUNT}問中 ${s.correct}問正解。</p><p>指南つき対局に挑戦できます。間違えた問題は「今日の復習」に出ます。</p>`);
+    dialog('練習問題を解き終えました', `<p>${PRACTICE_COUNT}問中 ${s.correct}問正解。</p><p>章末試験を受けられます。間違えた問題は「今日の復習」に出ます。</p>`);
   } else {
     show({ name: 'dojo' });
     dialog('今日の復習', `<p>${s.list.length}問中 ${s.correct}問正解。今日の復習は終わりです。</p>`);
@@ -314,24 +329,6 @@ function startTutorial(id) {
   });
 }
 
-function startChapterGame(ch) {
-  const rng = createRng(newSeed());
-  screen = { name: 'table', ch };
-  overlay = null;
-  table = createTableGame(stage, {
-    ...soundOpts(),
-    mode: 'chapter', heroName: rec.profile.name ?? 'あなた', coach: rec.coach,
-    chapter: {
-      id: ch, label: chapterLabel(ch), seal: chapterOf(ch).seal, hideTypes: chapterOf(ch).cast === 'hidden', note: startNote(ch),
-      setup: () => chapterSetup(ch, rng),
-    },
-    onHand: (session, _mode, decisions, info) => commit(A.recordHand(A.recordGameHand(rec, ch, tallyOf(decisions), session.coach), info.verdicts, info.result)),
-    onTournament: tourEnd,
-    onEnd: (info) => commit(A.finishGame(rec, ch, info.tally, info.coach).record),
-    onExit: () => { show({ name: 'dojo', selected: ch }); flushNotices(); },
-  });
-}
-
 // 本番大会（設計書 段階4-3）。resume：続きの大会（mainSnapshot の形）か null
 function startMain(resume) {
   screen = { name: 'table', ch: null };
@@ -345,36 +342,6 @@ function startMain(resume) {
     onEnd: (info) => commit(A.clearMain(info.coachMode === 'auto' ? A.setCoach(rec, info.coach) : rec)),
     onAbandon: () => commit(A.clearMain(rec)),
     onExit: () => { show({ name: 'title' }); flushNotices(); },
-  });
-}
-
-// 最終試験（設計書 段階4-4 第4節）：三段から。受験の途中があれば、その続き（続きの大会か、次の試験の大会）から
-function startExam() {
-  if (!canTakeExam(rec)) return;
-  commit(A.startExam(rec));
-  const e = rec.exam;
-  screen = { name: 'table', ch: 'final' };
-  overlay = null;
-  table = createTableGame(stage, {
-    ...soundOpts(),
-    mode: 'exam', heroName: rec.profile.name ?? 'あなた', coach: rec.coach, resume: e.game,
-    exam: { decisions: e.decisions, tournaments: e.tournaments, places: e.places, master: rec.dan.level >= MASTER },
-    onSave: (snapshot) => commit(A.saveExamGame(rec, snapshot)),
-    // 試験の判断は統計と段位の300回に数える。指南の状態（段階5に固定）は記録に残さない
-    onHand: (_session, _mode, _decisions, info) => commit(A.recordHand(rec, info.verdicts, info.result)),
-    onExamEnd: ({ verdicts, place, results }) => {
-      const r = A.finishExamTournament(rec, { verdicts, place, results, today: today() });
-      commit(r.record);
-      countTournament();
-      return { ...r, promoted: r.promoted && r.promoted.to < MASTER ? { ...r.promoted, ...nextStep(r.record) } : r.promoted };
-    },
-    onExamRestart: () => {
-      commit(A.startExam(rec));
-      return { decisions: [], tournaments: 0, places: [], master: rec.dan.level >= MASTER };
-    },
-    onAbandon: () => commit(A.abandonExam(rec)),
-    onEnd: () => {},
-    onExit: () => { show({ name: 'dojo', selected: 'final' }); flushNotices(); },
   });
 }
 
@@ -425,6 +392,7 @@ const ACTIONS = {
     const t = resumeTarget(rec, today());
     if (!t) show({ name: 'dojo' });
     else if (t.kind === 'review') startReview();
+    else if (t.kind === 'grad') goGrad();
     else goStep(t.chapter, t.kind);
   },
   dojo: () => show({ name: 'dojo' }),
@@ -439,7 +407,6 @@ const ACTIONS = {
     ]);
   },
   'main-resume': () => startMain(rec.mainGame),
-  exam: startExam,
   'main-new': () => dialog('新しく始める', '<p>前の大会を終わりにして、新しく始めますか？（前の大会は大会の成績に残りません）</p>', [
     { go: 'main-new-ok', label: '終わりにして始める', danger: true }, { go: 'dlg-close', label: 'やめる', primary: true },
   ]),
@@ -465,14 +432,15 @@ const ACTIONS = {
   pick: (el) => show({ name: 'dojo', selected: el.dataset.ch }),
   step: (el) => goStep(screen.selected ?? currentChapter(rec), el.dataset.step),
   review: startReview,
+  grad: goGrad,
   'lec-prev': () => turnTo(screen.page - 1),
   'lec-next': () => turnTo(screen.page + 1),
   'lec-done': () => goStep(screen.ch, 'practice'),
   choose: (el) => choose(Number(el.dataset.i)),
   next: nextQuestion,
   quit: () => dialog('やめますか？', '<p>ここまでの答えは保存されています。続きはあとからできます。</p>', [{ go: 'quit-ok', label: 'やめる', primary: true }, { go: 'dlg-close', label: '続ける' }]),
-  'quit-ok': () => show({ name: 'dojo', selected: screen.ch ?? undefined }),
-  retest: () => goStep(screen.view.chapterId, 'test'),
+  'quit-ok': () => show({ name: 'dojo', selected: screen.mode === 'grad' ? 'grad' : screen.ch ?? undefined }),
+  retest: () => (screen.view.grad ? goGrad() : goStep(screen.view.chapterId, 'test')),
   'open-next': (el) => show({ name: 'dojo', selected: el.dataset.ch }),
   rename: () => { overlay = nameEntryHTML({ mode: 'change', value: rec.profile.name ?? '' }); render(); },
   export: () => { downloadText(exportFileName(rec, today()), serialize(rec, new Date().toISOString())); commit(afterExport(rec)); },

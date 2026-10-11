@@ -4,7 +4,7 @@ import { cardLabel, isRed } from '../engine/cards.js';
 import { SITUATIONS, SITUATION_LABEL } from '../coach/situations.js';
 import { LEAK_CHAPTER } from '../dojo/stats.js';
 import { chapterLabel } from '../dojo/chapters.js';
-import { EXAM } from '../dojo/exam.js';
+import { MASTER } from '../dojo/ranks.js';
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -96,11 +96,6 @@ export function coachStripHTML(v, { open = false } = {}) {
   return `<div class="cstrip${fresh ? ' lit' : ''}">${main}${eq}${pullHTML(open)}</div>`;
 }
 
-// 最終試験の間の帯。a：examCoachHTML と同じ（この受験の判断の数）
-export function examStripHTML(a, { open = false } = {}) {
-  return `<div class="cstrip"><div class="cs-msg">試験中は指南なし（この受験の判断 ${a.decisions}回）</div>${pullHTML(open)}</div>`;
-}
-
 function plaqueHTML(p) {
   return `<div class="plaque${p.grade ? ` ${p.grade}` : ''}"><div class="k">${esc(p.k)}</div><div class="v">${esc(p.v)}</div><div class="s">${esc(p.s)}</div></div>`;
 }
@@ -128,72 +123,19 @@ export function mainEndHTML(o, report) {
   return `<h1>${p.title}</h1>${p.line}<h3>判断の成績</h3>${report}`;
 }
 
-// 最終試験（設計書 段階4-4 第4節・第7節）
-const RULE = `判断${EXAM.minDecisions}回以上で、正答率${Math.round(EXAM.accuracy * 100)}%以上・平均損失${EXAM.loss.toFixed(2)}BB以下`;
-// 始めの札。a：この受験の途中 { decisions（足してきた判断の数）, tournaments（終えた試験の大会の数）}
-export function examStartHTML(a) {
-  const now = a.decisions || a.tournaments ? `<p>この受験の判断 ${a.decisions}回（${a.tournaments + 1}大会目）</p>` : '';
-  return `<h1>最終試験</h1><p>45人・9人×5卓・上位6人入賞・開始20,000点（10ハンドごとにブラインドが上がる）。指南なしで打ちます。<br>
-相手は本番大会と同じ44人で、相手のタイプは伏せます（見た目と打ち方から見抜く）。</p>
-<p>${RULE}なら合格（達人）。判断が${EXAM.minDecisions}回に届くまで、試験の大会を続けます（判断の数は足していきます）。入賞したかどうかは問いません。</p>${now}
-<button class="mb main" data-start="exam">始める</button><button class="mb" data-exit="1">道場へ戻る</button>`;
-}
-
-// 試験中のコーチ欄。a：この受験の判断の数（この大会の分も足したもの）と、終えた試験の大会の数
-export function examCoachHTML(a) {
-  return `<div class="idle">試験中は指南なし<br><small>判断の成績は、大会の終わりに出ます</small></div>
-<div class="sec">こ の 受 験</div><div class="lvls"><span>判断<b>${a.decisions}</b></span><span>判定まで<b>${Math.max(0, EXAM.minDecisions - a.decisions)}</b></span><span>大会<b>${a.tournaments + 1}</b></span></div>
-<div class="idle"><small>相手のタイプは伏せています。見た目と打ち方から見抜いてください</small></div>`;
-}
-
-// 損の大きい場面（損の合計の大きい順に2つ。損が0の場面は出さない）と、復習する章
-export function examLeaks(decisions) {
-  return SITUATIONS.map((s) => ({ s, sum: decisions.filter((d) => d.situation === s).reduce((a, d) => a + d.loss, 0) }))
-    .filter((x) => x.sum > 0).sort((a, b) => b.sum - a.sum).slice(0, 2)
-    .map((x) => ({ label: SITUATION_LABEL[x.s], chapterLabel: chapterLabel(LEAK_CHAPTER[x.s]) }));
-}
-
-// 試験の大会の終わりの札。o：mainOutcome、e：{ result（'continue'・'pass'・'fail'）, tally（dojo/exam.js の tallyExam）, report（成績表）,
-//   titles（この受験で増えた称号 { wins, cashes } か null）, leaks（examLeaks）, master（この受験の前から達人か）}
-export function examEndHTML(o, e) {
-  const p = placeHTML(o);
-  const t = e.tally;
-  const nums = `<p>この受験の判断 ${t.n}回・正答率 ${t.accuracy === undefined ? '' : pct(t.accuracy)}・平均損失 ${t.loss?.toFixed(2)}BB<br><small>合格の基準：${RULE}</small></p>`;
-  const title = e.titles && (e.titles.wins ? '優勝' : e.titles.cashes ? '入賞' : null);
-  const titleLine = title ? `<p>称号「${title}」がつきました</p>` : '';
-  if (e.result === 'continue') {
-    return `<h1>${p.title}</h1>${p.line}<h3>この受験の判断　${t.n}回（${EXAM.minDecisions}回で判定）</h3>
-<p>判断${EXAM.minDecisions}回に届くまで、次の試験の大会を続けます（判断の数は足していきます）。<br>次の大会は、道場の「最終試験」からいつでも始められます。</p>${e.report}
-<button class="mb main" data-start="exam-next">次の大会へ</button><button class="mb" data-exit="1">道場へ戻る</button>`;
-  }
-  if (e.result === 'pass') {
-    const next = e.master ? '<button class="mb main" data-start="exam-again">もう一度受ける</button><button class="mb" data-exit="1">道場へ戻る</button>' : '<button class="mb main" data-master="1">次へ</button>';
-    return `<h1 class="pass">合格</h1>${nums}<h3>${p.title}（45人・あなたが打ったのは${o.heroHands}ハンド）</h3>${titleLine}<h3>この受験の判断の成績</h3>${e.report}${next}`;
-  }
-  const leaks = (e.leaks ?? []).map((x) => `<b>${esc(x.label)}</b>（${esc(x.chapterLabel)}で復習）`).join('・');
-  return `<h1>もう一歩</h1>${nums}<h3>${p.title}（45人・あなたが打ったのは${o.heroHands}ハンド）</h3>${titleLine}<h3>この受験の判断の成績</h3>${e.report}${leaks ? `<p>損の大きい場面：${leaks}</p>` : ''}
-<button class="mb main" data-start="exam-again">もう一度受ける</button><button class="mb" data-exit="1">道場へ戻る</button>`;
-}
-
-// 達人の祝いの札（初めて合格したとき）
-export function tatsujinHTML(name) {
-  return `<div class="tatsujin">達人</div><h1>達人になりました</h1>
-<p>${esc(name)}さん、最終試験に合格しました。<br>指南なしで、45人の大会を戦える判断ができています。</p>
-<p>これからも最終試験を受けられます。試験の大会で6位以内なら「入賞」、1位なら「優勝」の称号がつき、タイトルに出ます。</p>
-<button class="mb main" data-exit="1">道場へ戻る</button>`;
-}
-
 // 昇段のお知らせの1行（どの大会の終わりの札にも出す）。p：{ label, quality（直近300回の正答率・平均損失）, step（次の段か null）} か null
+// 達人（本番大会で通算10回優勝）は p.wins を出す（直近300回の数字は使わない）
 export function promoteHTML(p) {
   if (!p) return '';
+  if (p.to === MASTER) return `<p class="promote">★ 達人になりました<small>本番大会で通算${p.wins}回優勝</small></p>`;
   const next = p.step ? `（${p.step.label}まで：正答率${pct(p.step.accuracy)}以上・平均損失${p.step.loss.toFixed(2)}BB以下）` : '';
   return `<p class="promote">★ 昇段しました：${esc(p.label)}<small>直近300回の判断　正答率${pct(p.quality.accuracy)}・平均損失${p.quality.loss.toFixed(2)}BB${next}</small></p>`;
 }
 
-// 大会の終わりの成績表。noCoach：指南なし（最終試験）なら「指南」の列を「なし」にする
-export function reportHTML(r, { noCoach = false } = {}) {
+// 大会の終わりの成績表
+export function reportHTML(r) {
   if (r.n === 0) return '<p>この大会では、あなたの判断の記録はありません。</p>';
-  const rows = r.rows.filter((x) => x.n > 0).map((x) => `<tr><td>${x.label}</td><td>${x.n}</td><td>${pct(x.accuracy)}</td><td>${x.avgLoss.toFixed(2)}BB</td><td>${noCoach ? 'なし' : `段階${x.level}`}</td></tr>`).join('');
+  const rows = r.rows.filter((x) => x.n > 0).map((x) => `<tr><td>${x.label}</td><td>${x.n}</td><td>${pct(x.accuracy)}</td><td>${x.avgLoss.toFixed(2)}BB</td><td>段階${x.level}</td></tr>`).join('');
   return `<table class="report"><tr><th>場面</th><th>判断</th><th>正答率</th><th>平均損失</th><th>指南</th></tr>${rows}
   <tr class="sum"><td>合計</td><td>${r.n}</td><td>${pct(r.accuracy)}</td><td>${r.avgLoss.toFixed(2)}BB</td><td></td></tr></table>`;
 }

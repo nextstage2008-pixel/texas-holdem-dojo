@@ -4,7 +4,7 @@
 // 位置と大きさは portrait-geometry.js（重ならないことはテストで確かめる）。
 import { cardHTML, cardBackHTML } from './cards.js';
 import { fmt, esc } from './format.js';
-import { coachParts, coachStripHTML, examCoachHTML, examStripHTML, SHEET_TABS } from './coach-panel.js';
+import { coachParts, coachStripHTML, SHEET_TABS } from './coach-panel.js';
 import { dialStart } from './presets.js';
 import { initialOf, sideHTML, litClass, boardHTML } from './table-view.js';
 import { winLabelHTML } from './result-banner.js';
@@ -24,7 +24,6 @@ export function mountPortraitShell(stage) {
     <div class="fboard" data-ref="board" data-mv="center"></div>
     <div data-ref="layer"></div>
     <div class="rs-panel" data-ref="result" hidden></div>
-    <button class="stopbtn" data-ref="stop" hidden></button>
   </div>
   <div class="pt-strip" data-ref="strip"></div>
   <div class="pane"><div class="hero" data-ref="heroCards" data-mv="cards-0"></div><div class="hand2" data-ref="handInfo"></div><div class="pt-amount" data-ref="dial"></div><div class="btnrow" data-ref="buttons"></div></div>
@@ -140,9 +139,8 @@ export function sheetTabOf(ui) {
   return ui.coachTab ?? 'advice';
 }
 
-// 板の中身（大会のタブは sideHTML）。ui.grid：相手の手の表 { cells, title }（あなたの番の分析にあるとき）、ui.exam：最終試験の数
+// 板の中身（大会のタブは sideHTML）。ui.grid：相手の手の表 { cells, title }（あなたの番の分析にあるとき）
 export function ptSheetHTML(tab, ui) {
-  if (ui.exam) return tab === 'advice' ? examCoachHTML(ui.exam) : '<div class="idle">試験中は指南なし</div>';
   if (tab === 'grid') return ui.grid ? `<div class="sec">${esc(ui.grid.title)}</div>${gridBodyHTML(ui.grid.cells)}` : '<div class="idle">相手の手の表は、相手が参加している場面で、あなたの番に出ます</div>';
   const html = coachParts(ui.coachView)[tab];
   return html || '<div class="idle">相手の手の推定は、相手が参加している場面で、あなたの番に出ます</div>';
@@ -158,14 +156,14 @@ export function renderPortrait(refs, view, ui) {
   refs.layer.innerHTML = ptLayerHTML(view, ui);
   // コーチの帯と板
   const open = !refs.sheet.hidden;
-  refs.strip.innerHTML = ui.exam ? examStripHTML(ui.exam, { open }) : coachStripHTML(ui.coachView, { open });
+  refs.strip.innerHTML = coachStripHTML(ui.coachView, { open });
   const tab = sheetTabOf(ui);
   refs.coach.innerHTML = tab === 'side' ? '' : ptSheetHTML(tab, ui);
   refs.side.innerHTML = tab === 'side' ? sideHTML(view, ui.notices ?? []) : '';
   refs.coach.hidden = tab === 'side';
   refs.side.hidden = tab !== 'side';
   for (const b of refs.tabs.querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === tab);
-  refs.coachLv.textContent = ui.exam ? '指南なし' : ui.coachView.level ? `指南 段階${ui.coachView.level}` : '';
+  refs.coachLv.textContent = ui.coachView.level ? `指南 段階${ui.coachView.level}` : '';
   // 手元
   const c = view.controls;
   if (c && c.raise) {

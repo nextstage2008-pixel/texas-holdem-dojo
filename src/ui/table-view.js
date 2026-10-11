@@ -2,7 +2,7 @@
 import { cardHTML, cardBackHTML } from './cards.js';
 import { chipStackSVG } from './chips.js';
 import { chipBreakdown, fmt, esc } from './format.js';
-import { coachHTML, examCoachHTML } from './coach-panel.js';
+import { coachHTML } from './coach-panel.js';
 import { dialStart } from './presets.js';
 import { stageScale } from './layout.js';
 import { winLabelHTML } from './result-banner.js';
@@ -35,7 +35,6 @@ export function mountShell(stage, labels = { mark: '自由', name: 'あなた', 
       <div class="shield"><div class="sh">${esc(labels.mark)}</div><small><b>${esc(labels.name)}</b>${esc(labels.sub)}</small></div>
       <div class="hud-c"><div class="band" data-ref="band"></div><div class="body" data-ref="hudBody"></div></div>
       <div class="info" data-ref="info"></div>
-      <button class="stopbtn" data-ref="stop" hidden></button>
       <div class="rb" style="right:14px" data-ref="speed" title="早送り">⏩</div>
       <div class="rb" style="right:64px" data-ref="mute" title="音（入／切）">🔊</div>
       <div class="scene"><div class="plane"><div class="rail"><div class="wood"><div class="felt">
@@ -175,9 +174,9 @@ export function renderAll(refs, view, ui) {
   refs.board.innerHTML = boardHTML(view.board, view.boardLit);
   refs.layer.innerHTML = layerHTML(view, { pills: !ui.result }) + (ui.flash ? `<div class="flash">${esc(ui.flash)}</div>` : ''); // 卓の移動のお知らせ（数秒）
   refs.side.innerHTML = sideHTML(view, ui.notices ?? []);
-  // 右の欄：コーチと大会の状況をタブで切り替える。最終試験の間は指南なし（ui.exam：この受験の判断の数）
-  refs.coach.innerHTML = ui.exam ? examCoachHTML(ui.exam) : coachHTML(ui.coachView);
-  refs.coachLv.textContent = ui.exam ? '指南なし' : ui.coachView.level ? `指南 段階${ui.coachView.level}` : '';
+  // 右の欄：コーチと大会の状況をタブで切り替える
+  refs.coach.innerHTML = coachHTML(ui.coachView);
+  refs.coachLv.textContent = ui.coachView.level ? `指南 段階${ui.coachView.level}` : '';
   refs.coach.hidden = ui.tab !== 'coach';
   refs.side.hidden = ui.tab !== 'side';
   for (const b of refs.tabs.querySelectorAll('[data-tab]')) b.classList.toggle('on', b.dataset.tab === ui.tab);

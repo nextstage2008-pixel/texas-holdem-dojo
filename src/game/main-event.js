@@ -1,6 +1,5 @@
 // 本番大会の対局（設計書 段階4-3）：あなたの卓の対局（game/session.js の session と同じ形）と、多卓の大会（engine/field.js）をつなぐ。
-// session.main：{ coachMode, field（多卓の大会）, table（あなたの卓の番号）, exam（最終試験か） }。session.tournament は、あなたの卓を1卓の大会の形にしたもの。
-// 最終試験（設計書 段階4-4 第4節）は同じ44人がいつもの打ち方で打つ。タイプは伏せ（画面は「？」）、コーチは本当のタイプで採点、指南は段階5。
+// session.main：{ coachMode, field（多卓の大会）, table（あなたの卓の番号）}。session.tournament は、あなたの卓を1卓の大会の形にしたもの。
 // ハンドごとの乱数の元は「大会の種・ハンドの番号・卓の番号」（どの卓も）。途中で閉じても、同じハンドは同じカードと同じCPUの打ち方になる。
 import { createRng } from '../engine/rng.js';
 import { shuffle } from '../engine/cards.js';
@@ -33,20 +32,19 @@ function withField(session, field) {
   return { ...session, tournament, types: tournament.players.map((p) => p.type ?? 'pro'), hand: null, trail: [], main: { ...session.main, field, table } };
 }
 
-function base(seed, coachMode, coach, decisions = [], exam = false) {
-  const mode = exam ? 5 : coachMode;
+function base(seed, coachMode, coach, decisions = []) {
   return {
     seed, rng: createRng(seed), decisions,
-    coach: !exam && coach && mode === 'auto' ? structuredClone(coach) : createCoachState(mode), minLevel: 1, hideTypes: exam, trueTypes: exam,
-    main: { coachMode: mode, field: null, table: 0, exam },
+    coach: coach && coachMode === 'auto' ? structuredClone(coach) : createCoachState(coachMode), minLevel: 1,
+    main: { coachMode, field: null, table: 0 },
   };
 }
 
-// 新しい本番大会。coachMode：'auto' か 1〜5、coach：続きから使う指南の状態（自動のときだけ）、exam：最終試験（指南は段階5に固定）
-export function createMainSession({ seed, coachMode = 'auto', coach = null, heroName = null, exam = false }) {
+// 新しい本番大会。coachMode：'auto' か 1〜5、coach：続きから使う指南の状態（自動のときだけ）
+export function createMainSession({ seed, coachMode = 'auto', coach = null, heroName = null }) {
   const rng = createRng(seed);
   const heroTable = Math.floor(rng() * MAIN.tables);
-  return withField(base(seed, coachMode, coach, [], exam), createField({ people: mainPeople(rng, heroName), heroTable, rng }));
+  return withField(base(seed, coachMode, coach, []), createField({ people: mainPeople(rng, heroName), heroTable, rng }));
 }
 
 // あなたの卓のハンドを配る（その前に mainSnapshot で保存する）
@@ -123,7 +121,7 @@ export function mainSnapshot(session, results = []) {
   const handNo = session.tournament.handNumber + 1;
   const current = actions.length ? session.decisions.filter((d) => d.handNo === handNo) : [];
   return {
-    seed: session.seed, coachMode: session.main.coachMode, exam: session.main.exam, field: session.main.field,
+    seed: session.seed, coachMode: session.main.coachMode, field: session.main.field,
     verdicts: session.decisions.filter((d) => !current.includes(d)).map(({ situation, loss, correct }) => ({ situation, loss, correct })),
     results: results.map(({ r, e }) => ({ r, e })),
     hand: actions.length ? { actions, verdicts: current, coach: session.coach, check: handCheck(h) } : null,
@@ -131,7 +129,7 @@ export function mainSnapshot(session, results = []) {
 }
 
 // 保存した形から、次のハンドを配る前の対局に戻す。coach：記録の指南の状態（自動のときだけ使う）
-export const restoreMainSession = (snap, { coach = null } = {}) => withField(base(snap.seed, snap.coachMode, coach, snap.verdicts.map((v) => ({ ...v })), snap.exam === true), snap.field);
+export const restoreMainSession = (snap, { coach = null } = {}) => withField(base(snap.seed, snap.coachMode, coach, snap.verdicts.map((v) => ({ ...v }))), snap.field);
 
 // ハンドの途中で閉じた続き（mainSnapshot の hand）：restoreMainSession で戻した対局でそのハンドを配り直し、CPUの行動と保存したあなたの行動を
 // 順にたどり直して、閉じたときの場面にする。済んだ判断と指南の状態は保存したものを使う（採点し直さない）。

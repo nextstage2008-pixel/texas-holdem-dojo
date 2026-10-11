@@ -8,7 +8,6 @@ import { CAST } from '../../game/session.js';
 import { rankOf, resumeTarget, currentChapter, chapterState } from '../../dojo/progress.js';
 import { chapterLabel, chapterOf, PLAYABLE } from '../../dojo/chapters.js';
 import { MASTER } from '../../dojo/ranks.js';
-import { EXAM } from '../../dojo/exam.js';
 import { dueToday } from '../../dojo/reviews.js';
 import { NAME_MAX } from '../../dojo/name.js';
 import { resumeLabel } from '../../game/main-event.js';
@@ -30,18 +29,20 @@ export function buildTitleView(rec, today, env = {}) {
   const done = Object.values(st.steps ?? {}).filter((s) => s.done).length;
   const resume = resumeTarget(rec, today);
   const { answered, correct } = rec.practiceStats;
-  // 名前の下の行：達人は称号、全章に合格したら最終試験の案内、それまではいまの章（設計書 段階4-4 第7節）
-  const t = rec.titles;
-  const chapter = rank.dan >= MASTER ? `達人　称号：優勝 ${t.wins}回・入賞 ${t.cashes}回`
-    : rank.passed === PLAYABLE.length ? `全9章に合格・${rank.dan >= EXAM.needDan ? '最終試験を受けられます' : '最終試験は三段から'}`
-      : `${chapterLabel(cur)}「${chapterOf(cur).title}」`;
+  // 名前の下の行：達人なら達人、卒業したら卒業の日、全章に合格したら卒業試験の案内、それまではいまの章
+  const grad = rec.graduation.passedAt;
+  const t = rec.mainTitles;
+  const chapter = rank.dan >= MASTER ? `達人　本番大会の優勝 ${t.wins}回・入賞 ${t.cashes}回`
+    : grad ? `卒業（${grad}）`
+      : rank.passed === PLAYABLE.length ? '全9章に合格・卒業試験を受けられます'
+        : `${chapterLabel(cur)}「${chapterOf(cur).title}」`;
   return {
     name: rec.profile.name ?? '',
     rank: rank.label,
     chapter,
     accuracy: answered ? Math.round((correct / answered) * 100) : null,
-    progress: done / 4,
-    resume: resume ? { label: resume.fresh ? 'はじめる' : '続きから', sub: resume.fresh ? '序章の講義から' : resume.label } : { label: '道場で学ぶ', sub: 'すべての章に合格しました' },
+    progress: done / (Object.keys(st.steps ?? {}).length || 3), // 章の段は3つ（講義・練習問題・章末試験）
+    resume: resume ? { label: resume.fresh ? 'はじめる' : '続きから', sub: resume.fresh ? '序章の講義から' : resume.label } : { label: '道場で学ぶ', sub: '卒業しました' },
     reviews: dueToday(rec.reviews, today).length,
     main: rec.mainGame ? resumeLabel(rec.mainGame.field) : null, // 本番大会の続き
     safariNote: !!env.safariNote,

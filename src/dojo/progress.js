@@ -6,7 +6,7 @@ import { DAN_LABEL } from './ranks.js';
 const chapterRec = (rec, id) => rec.chapters[id] ?? null;
 export const isPassed = (rec, id) => !!chapterRec(rec, id)?.passedAt;
 
-// 段位：章末試験に合格した章の数だけ10級から上がる（全9章で1級）。初段〜三段・達人は dojo/ranks.js・exam.js で決めた rec.dan（段階4-4）
+// 段位：章末試験に合格した章の数だけ10級から上がる（全9章で1級）。初段〜三段・達人は dojo/ranks.js・actions.js で決めた rec.dan（段階4-4・2026-10-12）
 export function rankOf(rec) {
   const passed = PLAYABLE.filter((id) => isPassed(rec, id)).length;
   const kyu = Math.max(1, 10 - passed);
@@ -23,7 +23,7 @@ export function isOpen(rec, id) {
   return prev === null || isPassed(rec, prev) || !!chapterRec(rec, id);
 }
 
-// 章ごとの状態。steps：講義・練習・対局・試験それぞれの { open, done, note }、next：次にすること
+// 章ごとの状態。steps：講義・練習・試験それぞれの { open, done, note }（道場は座学だけ。2026-10-12）、next：次にすること
 export function chapterState(rec, id) {
   const meta = CHAPTERS.find((x) => x.id === id);
   if (!meta) throw new Error(`知らない章: ${id}`);
@@ -33,19 +33,16 @@ export function chapterState(rec, id) {
   const passed = isPassed(rec, id);
   const lectureDone = !!c?.lectureDone;
   const practiceDone = !!c?.practiceDone;
-  const gamePassed = !!c?.gamePassed;
   const steps = {
     lecture: { open, done: lectureDone, note: lectureDone ? '読んだ' : c?.lecturePage ? `${c.lecturePage + 1}ページ目から` : '' },
     practice: { open: open && lectureDone, done: practiceDone, note: c?.practice ? `${c.practice.index} / ${PRACTICE_COUNT}` : practiceDone ? '解いた' : '' },
-    game: { open: open && practiceDone, done: gamePassed, note: gamePassed ? `合格（最高 ${Math.round((c.gameBest ?? 0) * 100)}%）` : c?.gameBest != null ? `最高 ${Math.round(c.gameBest * 100)}%` : '' },
-    test: { open: open && gamePassed, done: passed, note: c?.test ? `${c.test.answers.length} / 20` : c?.testBest != null ? `最高 ${c.testBest}点` : '' },
+    test: { open: open && practiceDone, done: passed, note: c?.test ? `${c.test.answers.length} / 20` : c?.testBest != null ? `最高 ${c.testBest}点` : '' },
   };
   let next = null;
   if (open) {
     if (!lectureDone) next = { kind: 'lecture', label: c?.lecturePage ? `講義の続き（${c.lecturePage + 1}ページ目から）` : '講義を読む' };
     else if (c?.practice) next = { kind: 'practice', label: `練習問題の続き（${c.practice.index + 1}問目から）` };
     else if (!practiceDone) next = { kind: 'practice', label: '練習問題を解く' };
-    else if (!gamePassed) next = { kind: 'game', label: '指南つき対局に挑戦' };
     else if (c?.test) next = { kind: 'test', label: `章末試験の続き（${c.test.answers.length + 1}問目から）` };
     else if (!passed) next = { kind: 'test', label: '章末試験を受ける' };
     else next = { kind: 'practice', label: 'もう一度練習する' };
@@ -64,17 +61,28 @@ export function resumeTarget(rec, today = null) {
   if (r && r.kind !== 'review' && isOpen(rec, r.chapter)) {
     const st = chapterState(rec, r.chapter);
     const c = rec.chapters[r.chapter];
-    const inProgress = { lecture: !c?.lectureDone, practice: !!c?.practice, game: !c?.gamePassed, test: !!c?.test }[r.kind];
+    const inProgress = { lecture: !c?.lectureDone, practice: !!c?.practice, test: !!c?.test }[r.kind];
     if (inProgress && st.steps[r.kind]?.open) {
-      const step = { lecture: '講義', practice: '練習問題', game: '指南つき対局', test: '章末試験' }[r.kind];
+      const step = { lecture: '講義', practice: '練習問題', test: '章末試験' }[r.kind];
       return { kind: r.kind, chapter: r.chapter, label: `${chapterLabel(r.chapter)}・${step}` };
     }
     if (st.status !== 'passed') return { kind: st.next.kind, chapter: r.chapter, label: `${chapterLabel(r.chapter)}・${st.next.label}` };
   }
   const first = PLAYABLE.find((id) => isOpen(rec, id) && !isPassed(rec, id));
-  if (!first) return null;
+  if (!first) {
+    // 全9章に合格：卒業試験の途中ならその続き、まだ卒業していなければ卒業試験（卒業したら続きからはない）
+    const g = gradState(rec);
+    if (g.inProgress !== null) return { kind: 'grad', chapter: null, label: `卒業試験の続き（${g.inProgress + 1}問目から）` };
+    return g.passed ? null : { kind: 'grad', chapter: null, label: '卒業試験' };
+  }
   const st = chapterState(rec, first);
   return { kind: st.next.kind, chapter: first, label: `${chapterLabel(first)}・${st.next.label}`, fresh: !Object.keys(rec.chapters).length };
+}
+
+// 卒業試験の状態（2026-10-12）：open（全9章に合格）、passed・passedAt（合格した日）、best（最高点）、inProgress（途中なら答えた数・なければ null）
+export function gradState(rec) {
+  const g = rec.graduation;
+  return { open: PLAYABLE.every((id) => isPassed(rec, id)), passed: !!g.passedAt, passedAt: g.passedAt, best: g.best, inProgress: g.test ? g.test.answers.length : null };
 }
 
 // いまの章（タイトルの札に出す）：合格していない最初の開いた章。全部合格なら最後の章
