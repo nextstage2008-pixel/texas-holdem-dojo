@@ -33,9 +33,10 @@ const BLOCK = {
       const t = (Math.PI * 2 * i) / n + Math.PI / 2;
       const x = 50 + 42 * Math.cos(t);
       const y = 50 + 36 * Math.sin(t);
-      return `<div class="fg-seat${s.name === 'BTN' ? ' btn' : ''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"><b>${esc(s.name)}</b>${s.note ? `<small>${esc(s.note)}</small>` : ''}</div>`;
+      return `<div class="fg-seat${s.btn ?? s.name === 'BTN' ? ' btn' : ''}" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%"><b>${esc(s.name)}</b>${s.note ? `<small>${esc(s.note)}</small>` : ''}</div>`;
     }).join('');
-    return `<div class="fg-ring"><div class="fg-felt">先に行動 → 後に行動<br><small>（プリフロップ）</small></div>${items}</div>`;
+    const felt = b.felt ? b.felt.map(esc).join('<br>') : '先に行動 → 後に行動<br><small>（プリフロップ）</small>';
+    return `<div class="fg-ring"><div class="fg-felt">${felt}</div>${items}</div>`;
   },
   note: (b) => `<div class="fg-big">${esc(b.text)}</div>`,
   // 1万回やり直す（第8章）：内訳の横棒・回数と平均の線・100回ずつの平均のヒストグラム

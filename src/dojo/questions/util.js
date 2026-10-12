@@ -39,6 +39,17 @@ export function withChoices(rng, correct, wrongs, { count = 4, fixed = null } = 
 }
 
 export const pct = (x) => `${Math.round(x * 100)}%`;
+// 強い順の「上位○%」（四捨五入で 0% になるとても強い手は「1%未満」）
+export const topPct = (x) => (x < 0.005 ? '1%未満' : pct(x));
+// 手の言い方（書き方の記号 AKs・TT などを使わず、ふだんの言葉で。2026-10-12）：'AKs' → 'A と K（同じマーク）'・'TT' → '10 のペア'・'AK' → 'A と K'
+const rankWord = (ch) => (ch === 'T' ? '10' : ch);
+export function handName(label) {
+  const a = rankWord(label[0]);
+  const b = rankWord(label[1]);
+  if (label[0] === label[1]) return `${a} のペア`;
+  const suit = { s: '（同じマーク）', o: '（違うマーク）' }[label[2]] ?? '';
+  return `${a} と ${b}${suit}`;
+}
 export const cardsText = (cards) => cards.map(cardLabel).join(' ');
 export const fmt = (n) => Math.round(n).toLocaleString('en-US');
 

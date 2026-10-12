@@ -32,7 +32,7 @@ export function emptyRecord(today) {
     resume: null, // { kind, chapter } 最後にしていたこと（卒業試験・復習は chapter: null）
     coach: createCoachState('auto'),
     practiceStats: { answered: 0, correct: 0 },
-    settings: {},
+    settings: { quizRev: QUIZ_REV }, // 新しい記録は、問題の並びが変わったあとの記録（applyQuizRev を通さない）
     stats: emptyStats(), // 判断の累計・直近1,000ハンドの結果・直近100大会の成績（dojo/stats.js。版2から）
     mainGame: null, // 本番大会の続き（game/main-event.js の mainSnapshot の形。版3から）
     dan: { level: 0, at: null }, // 段位（dojo/ranks.js。0＝なし・1〜3＝初段〜三段・4＝達人）と取った日（版4から）
@@ -190,6 +190,19 @@ export function checkRecord(r) {
   return checkStats(r.stats);
 }
 
+// 問題の並びが変わった印（2026-10-12 道場の文の書き直し）：組み合わせの数の型を第1章から第4章へ移したので、保存した種から作り直す
+// 第1章・第4章の章末試験と卒業試験の並びが変わった。途中まで答えた番号が別の問題に当たって採点が狂わないよう、
+// 印のない記録を読み込んだときだけ、途中の第1章・第4章の章末試験と卒業試験を最初からにする（受けた記録・最高点・合格・ほかの途中は残す）。
+// 印は settings.quizRev（形を変えずに足せる所。保存の版は上げない）
+export const QUIZ_REV = 2;
+const SHIFTED = ['ch1', 'ch4'];
+export function applyQuizRev(rec) {
+  if (rec.settings?.quizRev === QUIZ_REV) return rec;
+  const chapters = { ...rec.chapters };
+  for (const id of SHIFTED) if (chapters[id]) chapters[id] = { ...chapters[id], test: null };
+  return { ...rec, chapters, graduation: { ...rec.graduation, test: null }, settings: { ...rec.settings, quizRev: QUIZ_REV } };
+}
+
 export const MAIN_DROPPED = '本番大会の続きが壊れていたので、続きの大会だけを消しました';
 
 // ハンドの途中の続きが壊れていたら、そのハンドの初めからにする（hand だけを消す）
@@ -224,7 +237,7 @@ export function parseRecord(text) {
   const notice = notices.length ? notices.join('。') : null;
   const bad = checkRecord(record);
   if (bad) return { ok: false, record: null, error: `記録の中身が壊れています（${bad}）`, newer: false, notice: null };
-  return { ok: true, record, error: null, newer: false, notice };
+  return { ok: true, record: applyQuizRev(record), error: null, newer: false, notice };
 }
 
 // 起動時の読み込み：本体 → 控え → 最初から。返す値：{ record, source（'main'|'backup'|'new'）, notice（知らせる文か null）, broken（退避する壊れた文字列か null）}

@@ -1,6 +1,7 @@
 // 記録から読み取る進み具合（設計書 段階3 第3節）：章の開き方・手順の開き方・次にすること・段位・続きから。
 import { CHAPTERS, PLAYABLE, previousPlayable, chapterLabel, PRACTICE_COUNT, TRIAL } from './chapters.js';
 import { tutorialDone } from './tutorial-record.js';
+import { lectureOf } from './lectures/chapters.js';
 import { dueToday } from './reviews.js';
 import { DAN_LABEL } from './ranks.js';
 
@@ -43,18 +44,20 @@ export function chapterState(rec, id) {
   const passed = isPassed(rec, id);
   const lectureDone = !!c?.lectureDone;
   const practiceDone = !!c?.practiceDone;
+  // 講義の途中のページ（講義を書き直してページ数が減っても、ページ数の中に収める。2026-10-12）
+  const page = c?.lecturePage ? Math.min(c.lecturePage, lectureOf(id).length - 1) : 0;
   const trial = trialState(rec, id);
   const touched = !!c?.practice || practiceDone || passed;
   const trialGate = trial.lessons.length > 0 && !trial.all && !touched;
   const steps = {
-    lecture: { open, done: lectureDone, note: lectureDone ? '読んだ' : c?.lecturePage ? `${c.lecturePage + 1}ページ目から` : '' },
+    lecture: { open, done: lectureDone, note: lectureDone ? '読んだ' : page ? `${page + 1}ページ目から` : '' },
     ...(trial.lessons.length ? { trial: { open: open && lectureDone, done: trial.all, note: trial.all ? '済' : trial.done ? `${trial.done} / ${trial.lessons.length}` : '' } } : {}),
     practice: { open: open && lectureDone && !trialGate, done: practiceDone, note: c?.practice ? `${c.practice.index} / ${PRACTICE_COUNT}` : practiceDone ? '解いた' : '' },
     test: { open: open && practiceDone, done: passed, note: c?.test ? `${c.test.answers.length} / 20` : c?.testBest != null ? `最高 ${c.testBest}点` : '' },
   };
   let next = null;
   if (open) {
-    if (!lectureDone) next = { kind: 'lecture', label: c?.lecturePage ? `講義の続き（${c.lecturePage + 1}ページ目から）` : '講義を読む' };
+    if (!lectureDone) next = { kind: 'lecture', label: page ? `講義の続き（${page + 1}ページ目から）` : '講義を読む' };
     else if (trialGate) next = { kind: 'trial', label: trial.done ? `卓で体験の続き（${trial.lessons.indexOf(trial.next) + 1}つ目から）` : '卓で体験する' }; // 番号は実際に始まるレッスン（古い目次では好きな順に遊べた）
     else if (c?.practice) next = { kind: 'practice', label: `練習問題の続き（${c.practice.index + 1}問目から）` };
     else if (!practiceDone) next = { kind: 'practice', label: '練習問題を解く' };

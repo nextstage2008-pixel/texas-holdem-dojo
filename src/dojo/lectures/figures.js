@@ -17,7 +17,7 @@ import { icmShares, placeProbs } from '../../calc/icm.js';
 import { solveSpot, pushEvOf, callEvOf, rangeShare, weightsOf } from '../../calc/pushfold.js';
 import { pushFormula } from '../../coach/explain.js';
 import { PUSH_BLINDS } from '../scene.js';
-import { pct1 } from '../questions/util.js';
+import { pct1, handName, topPct } from '../questions/util.js';
 import { repeatOutcomes } from '../../calc/repeat.js';
 import { partsOf, partsText, spts } from '../../coach/repeat.js';
 import { createRng } from '../../engine/rng.js';
@@ -41,9 +41,16 @@ const bubbleOf = (bb) => {
   const b = bubbleSpot([bb, bb, bb, bb], 'BTN');
   return { ...b, chip: solveSpot(b.spot) };
 };
-const shown = (label) => label.replaceAll('T', '10');
+const shown = (label) => label; // 手の書き方（AK・AKs・TT）。10 は T と書く（第4章で教える。2026-10-12）
 const expand = (label) => (label.length === 2 && label[0] !== label[1] ? [`${label}s`, `${label}o`] : [label]);
 export const SEAT_ORDER = ['UTG', 'UTG+1', 'MP', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+// プリフロップで何番目に行動するか（序章の「そのほかの席の呼び名」の図）
+const SEAT_TURN = { UTG: '1番目', 'UTG+1': '2番目', MP: '3番目', LJ: '4番目', HJ: '5番目', CO: '6番目', BTN: '7番目', SB: '8番目', BB: '9番目' };
+// 役の形の短い説明（序章の役の図）
+export const ROLE_NOTE = {
+  ストレートフラッシュ: '同じマークで数字が5つ続く', フォーカード: '同じ数字が4枚', フルハウス: '同じ数字3枚＋2枚', フラッシュ: '同じマークが5枚',
+  ストレート: '数字が5つ続く', スリーカード: '同じ数字が3枚', ツーペア: '同じ数字2枚が2組', ワンペア: '同じ数字が2枚', ハイカード: '役がない',
+};
 
 const MAKERS = {
   // 進み方：手札2枚と場の5枚
@@ -54,12 +61,15 @@ const MAKERS = {
         { label: 'フロップ', cards: parseCards(f.board).slice(0, 3), note: '3枚' },
         { label: 'ターン・リバー', cards: parseCards(f.board).slice(3), note: '1枚ずつ' },
       ] },
-      { kind: 'formula', text: '7枚のうち一番強い5枚で勝負', big: describe(evaluate([...parseCards(f.hole), ...parseCards(f.board)])) },
+      { kind: 'formula', text: '7枚のうち一番強い5枚で勝負', big: f.hideHand ? '' : describe(evaluate([...parseCards(f.hole), ...parseCards(f.board)])) }, // 序章の1ページ目は役を習う前なので役の名前を出さない
     ],
   }),
-  // 役の一覧（例の5枚から役の名前を役判定で出す）
+  // 役の一覧（例の5枚から役の名前を役判定で出す。notes のときは役の形の短い説明を添える）
   ranking: (f) => ({
-    blocks: [{ kind: 'cards', rows: f.rows.map((cards) => ({ label: describe(evaluate(parseCards(cards))), cards: parseCards(cards), note: '' })) }],
+    blocks: [{ kind: 'cards', rows: f.rows.map((cards) => {
+      const label = describe(evaluate(parseCards(cards)));
+      return { label, cards: parseCards(cards), note: f.notes ? ROLE_NOTE[label] ?? '' : '' };
+    }) }],
   }),
   // 2人の勝負
   showdown: (f) => {
@@ -72,31 +82,43 @@ const MAKERS = {
       blocks: [
         { kind: 'cards', rows: [
           { label: '場', cards: board, note: '' },
-          { label: 'A', cards: a, note: describe(sa) },
-          { label: 'B', cards: b, note: describe(sb) },
+          { label: 'Aさん', cards: a, note: describe(sa) },
+          { label: 'Bさん', cards: b, note: describe(sb) },
         ] },
-        { kind: 'formula', text: sa === sb ? '使う5枚が同じ強さ' : '同じ役ならキッカーで比べる', big: sa > sb ? 'Aの勝ち' : sb > sa ? 'Bの勝ち' : '引き分け' },
+        { kind: 'formula', text: sa === sb ? '使う5枚が同じ強さ' : '同じ役ならキッカーで比べる', big: sa > sb ? 'Aさんの勝ち' : sb > sa ? 'Bさんの勝ち' : '引き分け' },
       ],
     };
   },
-  // 席の並び（withPct のときは参加の目安を添える）
-  seats: (f) => ({
-    blocks: [{ kind: 'seats', seats: SEAT_ORDER.map((s) => ({ name: s, note: f.withPct && OPEN_PCT[s] ? `上位${pct(OPEN_PCT[s])}` : s === 'BB' && f.withPct ? '守る側' : '' })) }],
+  // 席の並び（withPct のときは参加の目安を添える）。mode：'blinds'＝ボタンとブラインドの3つだけ名前を出す・'order'＝そこに UTG を足す・
+  // 'all'＝全部の席に何番目に行動するかを添える（序章で、席の呼び名を少しずつ出すため。2026-10-12）
+  seats: (f) => {
+    const shownIn = { blinds: ['BTN', 'SB', 'BB'], order: ['UTG', 'BTN', 'SB', 'BB'] }[f.mode] ?? SEAT_ORDER;
+    const felt = f.mode === 'blinds' ? ['ボタンの次の2人が', 'ブラインドを置く'] : null;
+    return {
+      blocks: [{ kind: 'seats', felt, seats: SEAT_ORDER.map((s) => ({
+        name: !shownIn.includes(s) ? '・' : f.mode === 'blinds' && s === 'BTN' ? 'ボタン' : s, btn: s === 'BTN',
+        note: f.withPct && OPEN_PCT[s] ? `上位${pct(OPEN_PCT[s])}` : f.mode === 'all' ? SEAT_TURN[s] : '',
+      })) }],
+    };
+  },
+  // 手の書き方（第4章）：書き方とふだんの言葉の表
+  notation: (f) => ({
+    blocks: [{ kind: 'table', head: ['書き方', '意味'], rows: f.labels.map((l) => [l, `${handName(l)}${l.length === 2 && l[0] !== l[1] ? '（マークは問わない）' : ''}`]) }],
   }),
-  // 組合せの数
+  // 組み合わせの数
   combos: (f) => ({
-    blocks: [{ kind: 'table', head: ['手', '組合せ'], rows: f.labels.map((l) => [shown(l), `${expand(l).reduce((a, x) => a + classSize(classFromLabel(x)), 0)}通り`]) }],
+    blocks: [{ kind: 'table', head: ['手', '組み合わせ'], rows: f.labels.map((l) => [shown(l), `${expand(l).reduce((a, x) => a + classSize(classFromLabel(x)), 0)}通り`]) }],
   }),
-  // 169種類の中の順位（上位何%か）
+  // 強い順の位置（上位何%か）。手はふだんの言葉で（第1章）
   top: (f) => ({
-    blocks: [{ kind: 'table', head: ['手', '上位'], rows: f.labels.map((l) => [shown(l), pct(CLASS_PCT[classFromLabel(l)])]) }],
+    blocks: [{ kind: 'table', head: ['手', '強い順'], rows: f.labels.map((l) => [handName(l), `上位${topPct(CLASS_PCT[classFromLabel(l)])}`]) }],
   }),
   // 同じ手を席ごとに：参加するか
   openBySeat: (f) => {
     const p = CLASS_PCT[classFromLabel(f.label)];
     return {
       blocks: [
-        { kind: 'formula', text: `${shown(f.label)} は169種類の上位`, big: pct(p) },
+        { kind: 'formula', text: `${handName(f.label)}は、強い順で上位`, big: pct(p) },
         { kind: 'table', head: ['席', '目安', 'この手'], rows: SEAT_ORDER.filter((s) => OPEN_PCT[s]).map((s) => [s, `上位${pct(OPEN_PCT[s])}`, p <= OPEN_PCT[s] ? '参加' : '降りる']) },
       ],
     };
@@ -120,7 +142,7 @@ const MAKERS = {
       { kind: 'formula', text: `勝つ見込み ${pct(f.eq)}　損益分岐点 ${pct(f.breakeven)}`, big: f.eq > f.breakeven ? 'コールは得' : '降りる' },
     ],
   }),
-  // アウツと2と4の法則
+  // アウツと2と4の法則（countOnly のときはアウツの数だけ。2と4の法則を習う前のページ）
   outs: (f) => {
     const hole = parseCards(f.hole);
     const board = parseCards(f.board);
@@ -129,7 +151,7 @@ const MAKERS = {
     return {
       blocks: [
         { kind: 'cards', rows: [{ label: 'あなたの手', cards: hole, note: '' }, { label: '場', cards: board, note: '' }] },
-        { kind: 'formula', text: `アウツ ${n}枚：${n}×${street === 'flop' ? 4 : 2} ≒ ${pct(ruleOfThumb(n, street))}（正確には ${(outsChance(n, street) * 100).toFixed(2)}%）`, big: `${n}枚` },
+        { kind: 'formula', text: f.countOnly ? 'アウツ' : `アウツ ${n}枚：${n}×${street === 'flop' ? 4 : 2} ≒ ${pct(ruleOfThumb(n, street))}（正確には ${(outsChance(n, street) * 100).toFixed(2)}%）`, big: `${n}枚` },
       ],
       outs: n,
     };
@@ -186,15 +208,16 @@ const MAKERS = {
     return {
       blocks: [
         { kind: 'cards', rows: [{ label: 'あなたの手', cards: hero, note: describe(mine) }, { label: '場', cards: board, note: '' }] },
-        { kind: 'table', head: ['相手の手', '組合せ', 'あなたが勝っている'], rows },
+        { kind: 'table', head: ['相手の手', '組み合わせ', 'あなたが勝っている'], rows },
         { kind: 'formula', text: `${wins} ÷ ${all} ＝`, big: pct(wins / all) },
       ],
       share: wins / all,
     };
   },
   // CPUの4タイプ
+  // 相手のタイプの表（noCounter のときは攻め方の列を出さない。攻め方の言葉を習う前のページ）
   types: (f) => ({
-    blocks: [{ kind: 'table', head: ['タイプ', '参加率', 'レイズ率', '攻め方'], rows: f.keys.map((k) => [typeName(k), `${TYPE_STATS[k].vpip}%`, `${TYPE_STATS[k].pfr}%`, COUNTER[k]]) }],
+    blocks: [{ kind: 'table', head: ['タイプ', '参加率', 'レイズ率', ...(f.noCounter ? [] : ['攻め方'])], rows: f.keys.map((k) => [typeName(k), `${TYPE_STATS[k].vpip}%`, `${TYPE_STATS[k].pfr}%`, ...(f.noCounter ? [] : [COUNTER[k]])]) }],
   }),
   // 第5章：持ち点が少ないとき、レイズして押し返されたら（持ち点・レイズ・残り）
   shortStack: (f) => ({
@@ -293,7 +316,7 @@ const MAKERS = {
       blocks: [
         { kind: 'table', head: [`BBの ${shown(f.hand)} で受ける`, '得'], rows: [['点で計算', sbb(dc.ev / BB)], ['賞金で計算', `${spct(dp.ev / b.total)}（点に直すと ${sbb(dp.ev / BB)}）`]] },
         { kind: 'gauge', value: dp.eq, mark: dp.breakeven },
-        { kind: 'formula', text: `元が取れる勝つ見込み：点なら ${pct(dc.breakeven)} →`, big: `賞金なら ${pct(dp.breakeven)}` },
+        { kind: 'formula', text: `損益分岐点：点なら ${pct(dc.breakeven)} →`, big: `賞金なら ${pct(dp.breakeven)}` },
       ],
       chip: dc, prize: dp, total: b.total,
     };

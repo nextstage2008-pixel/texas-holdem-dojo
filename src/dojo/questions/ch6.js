@@ -85,7 +85,7 @@ export function bubbleCall(rng) {
         `点で計算：受ける ${sbb(dc.ev / BB)}／賞金で計算：受ける ${spct(dp.ev / b.total)}（点に直すと ${sbb(dp.ev / BB)}）。`,
         same ? `点でも賞金でも${yes ? '得なので受ける' : '損なので降りる'}。`
           : yes ? '点では損でも、賞金では得なので受ける。' : '点では得でも、負けて飛ぶと賞金がもらえないので、賞金では損 → 降りる。',
-        `押した人の範囲（賞金で計算した基準）は全体の${pct(rangeShare(b.solved.push))}。損益分岐点は点なら ${pct(dc.breakeven)}、賞金なら ${pct(dp.breakeven)}。`,
+        `押した人の範囲（賞金で計算した目安）は全体の${pct(rangeShare(b.solved.push))}。損益分岐点は点なら ${pct(dc.breakeven)}、賞金なら ${pct(dp.breakeven)}。`,
       ],
       calc: `点で計算：${callFormula(dc, BB)}`,
     };
@@ -115,7 +115,7 @@ export function bubblePush(rng) {
       ...withChoices(r, yes ? '押す（オールイン）' : '降りる', [], { fixed: ['押す（オールイン）', '降りる'] }),
       explain: [
         `賞金で計算：押す ${spct(dp.ev / b.total)}（点に直すと ${sbb(dp.ev / BB)}）／点で計算：押す ${sbb(dc.ev / BB)}。`,
-        `この席の押す範囲（賞金で計算した基準）は全体の${pct(rangeShare(b.solved.push))}。${shownLabel(c)} は範囲の${yes ? '中' : '外'}。`,
+        `この席の押す範囲（賞金で計算した目安）は全体の${pct(rangeShare(b.solved.push))}。${shownLabel(c)} は範囲の${yes ? '中' : '外'}。`,
       ],
       calc: `点で計算：${pushFormula(dc, b.chipPay, BB)}`,
     };

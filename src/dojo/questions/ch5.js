@@ -14,7 +14,7 @@ export const PUSH_SEATS = ['UTG', 'UTG+1', 'MP', 'LJ', 'HJ', 'CO', 'BTN', 'SB'];
 const PUSH_CHOICES = ['押す（オールイン）', '降りる'];
 const CALL_CHOICES = ['受ける（コール）', '降りる'];
 
-export const shownLabel = (c) => classLabel(c).replaceAll('T', '10');
+export const shownLabel = (c) => classLabel(c); // 手の書き方（10 は T。第4章で習う。2026-10-12）
 export function holeOf(rng, c) {
   const i = pick(rng, CLASS_COMBOS[c]);
   return [COMBO_A[i], COMBO_B[i]];
@@ -52,8 +52,8 @@ export function pushFold(rng) {
       scene: { board: [], hole: holeOf(r, c), others: [], pills: [`全員 ${bb}BB（BBアンティあり）`, `あなたの席：${SEAT_NOTE[pos]}`] },
       ...withChoices(r, PUSH_CHOICES[yes ? 0 : 1], [], { fixed: PUSH_CHOICES }),
       explain: [
-        `${pos}・${bb}BBの押す範囲は全体の${pct(rangeShare(s.push))}（上級者どうしの基準）。${shownLabel(c)} は範囲の${yes ? '中' : '外'}。`,
-        `全員が降りる見込み ${pct(d.pAllFold)}、受けられたときの勝つ見込み ${pct(d.eqCalled)}（元が取れるのは ${pct(d.breakeven)}）→ 押すと ${sbb(d.ev / BB)}。`,
+        `${pos}・${bb}BBの押す範囲は全体の${pct(rangeShare(s.push))}（上手な人どうしの目安）。${shownLabel(c)} は範囲の${yes ? '中' : '外'}。`,
+        `全員が降りる見込み ${pct(d.pAllFold)}、受けられたときの勝つ見込み ${pct(d.eqCalled)}（受けられたときの損益分岐点 ${pct(d.breakeven)}）→ 押すと ${sbb(d.ev / BB)}。`,
       ],
       calc: pushFormula(d, s.pay, BB),
     };
@@ -81,7 +81,7 @@ export function callPush(rng) {
       scene: { board: [], hole: holeOf(r, c), others: [], pills: [`全員 ${bb}BB（BBアンティあり）`, `押した人：${pusherPos}`, `あなたの席：${callerPos}`] },
       ...withChoices(r, CALL_CHOICES[yes ? 0 : 1], [], { fixed: CALL_CHOICES }),
       explain: [
-        `${pusherPos}・${bb}BBの押す範囲は全体の${pct(pushShare)}（上級者どうしの基準）。その範囲に対する ${shownLabel(c)} の勝つ見込みは ${pct(d.eq)}、損益分岐点は ${pct(d.breakeven)}。`,
+        `${pusherPos}・${bb}BBの押す範囲は全体の${pct(pushShare)}（上手な人どうしの目安）。その範囲に対する ${shownLabel(c)} の勝つ見込みは ${pct(d.eq)}、損益分岐点は ${pct(d.breakeven)}。`,
         `${callerPos} が受ける範囲は全体の${pct(callShare)}（押す範囲より${callShare < pushShare ? '狭い。受ける側には降りてもらえる得がない' : '広い'}）。${shownLabel(c)} は範囲の${yes ? '中' : '外'}。`,
       ],
       calc: callFormula(d, BB),

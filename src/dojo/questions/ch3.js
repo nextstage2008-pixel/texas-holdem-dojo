@@ -8,12 +8,14 @@ import { headsUpSpot } from '../scene.js';
 import { drawCards, pick, withChoices, retry, fmt } from './util.js';
 
 export const CLASS_NAME = { strong: '強い', good: '中くらい', weak: '弱い', draw: 'ドロー', air: '何もない' };
+// 解説の文の「〇〇手」（中くらいの手・ドローの手）
+const handWord = (cls) => ({ good: '中くらいの手', draw: 'ドローの手' }[cls] ?? `${CLASS_NAME[cls]}手`);
 const CLASS_WHY = {
   strong: '自分のカードを使ったスリーカード以上か、ツーペア（場にペアがないとき）は「強い」。',
-  good: '自分のカードで作ったペアが場の一番高いカード以上（トップペア・オーバーペア）なら「中くらい」。',
+  good: '自分のカードで作ったペアが、場の一番高いカードと同じか高い（トップペア・オーバーペア）なら「中くらい」。',
   weak: '場の一番高いカードより下のペアは「弱い」。',
-  draw: 'あと1枚でフラッシュかストレートになる形は「ドロー」。',
-  air: 'ペアもドローもない（場のペアだけを含む）なら「何もない」。',
+  draw: 'あと1枚でフラッシュになる形か、ストレートになる数字が2つある形（両側が開いた形など）は「ドロー」。',
+  air: 'ペアもドローもないなら「何もない」（場の札だけでできたペアと、真ん中が1つ抜けただけの形も含む）。',
 };
 const CLASS_CHOICES = ['強い', '中くらい', '弱い', 'ドロー', '何もない'];
 
@@ -66,9 +68,9 @@ export function betOrCheck(rng) {
       ...withChoices(r, correct, [], { fixed: BET_CHOICES }),
       explain: [
         correct === 'ベット'
-          ? `${CLASS_NAME[cls]}手は、弱い手からもコールをもらえるのでベットで点を増やせる。`
-          : `${CLASS_NAME[cls]}手でベットすると、降りてほしい手は降り、強い手にだけ呼ばれやすい。チェックで安く見る。`,
-        `期待値（誤差を差し引いた値）：ベット ${fmt(bet.low)}点　チェック ${fmt(check.low)}点。`,
+          ? `${handWord(cls)}は、弱い手の人からもコールしてもらえるので、ベットで取れる点を増やせる。`
+          : `${handWord(cls)}でベットすると、それより弱い手の人は降り、強い手の人だけがコールしてきやすい。チェックで安く次のカードを見る。`,
+        `同じ場面を何度もくり返して計算した平均の得（計算のぶれを考えて、少なめに見た値）：ベット ${fmt(bet.low)}点　チェック ${fmt(check.low)}点。`,
       ],
       calc: null,
     };

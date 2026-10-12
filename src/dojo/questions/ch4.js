@@ -9,7 +9,7 @@ const RANGES = [
   ['JJ', 'TT', 'AK'], ['AA', 'KK', 'QQ', 'JJ'], ['QQ', 'JJ', 'AQ'], ['AK', 'AQ', 'KQ'],
 ];
 const expand = (label) => (label.length === 2 && label[0] !== label[1] ? [`${label}s`, `${label}o`] : [label]);
-const shown = (label) => label.replaceAll('T', '10');
+const shown = (label) => label; // 手の書き方（10 は T）。第4章の2ページ目で教える
 
 export function rangeCount(rng) {
   const range = pick(rng, RANGES);
@@ -34,7 +34,7 @@ export function rangeCount(rng) {
     if (total === fullTotal) return null;
     const wrongs = [fullTotal, total - 3, total + 3, total - 6, total + 4, total - 2].filter((n) => n > 0).map((n) => `${n}通り`);
     return {
-      prompt: `相手の手は ${range.map(shown).join('・')} のどれか（AK などはマークを問わない）。場のカードを見て、ありうる組合せは何通り？`,
+      prompt: `相手の手は ${range.map(shown).join('・')} のどれか（AK などはマークを問わない）。場のカードを見て、ありうる組み合わせは何通り？`,
       scene: { board, hole: null, others: [], pills: [`相手の手の候補：${range.map(shown).join('・')}`] },
       ...withChoices(r, `${total}通り`, wrongs),
       explain: [
