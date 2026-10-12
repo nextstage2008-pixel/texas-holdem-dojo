@@ -11,9 +11,8 @@ import { quizHTML, testResultHTML, wrongList } from './ui/screens/quiz.js';
 import { onKey } from './ui/keys.js';
 import { settingsHTML, dialogHTML, importSummaryHTML } from './ui/screens/settings.js';
 import { aboutHTML } from './ui/screens/about.js';
-import { tutorialMenuHTML } from './ui/screens/tutorial-menu.js';
-import { LESSONS, lessonOf } from './tutorial/lessons.js';
-import { tutorialDone, withTutorialDone } from './ui/tutorial-record.js';
+import { LESSONS } from './tutorial/lessons.js';
+import { withTutorialDone } from './dojo/tutorial-record.js';
 import { createTutorialGame, nextLessonOf } from './ui/tutorial-game.js';
 import { statsHTML, buildStatsView } from './ui/screens/stats.js';
 import { esc } from './ui/format.js';
@@ -21,12 +20,12 @@ import { loadRecord, serialize, exportFileName, inspectImport, emptyRecord } fro
 import { localDate } from './dojo/dates.js';
 import * as A from './dojo/actions.js';
 import { validateName } from './dojo/name.js';
-import { resumeTarget, currentChapter, chapterState, gradState } from './dojo/progress.js';
+import { currentChapter, chapterState, gradState, trialState, dojoTarget } from './dojo/progress.js';
 import { lectureOf } from './dojo/lectures/chapters.js';
 import { practiceList, testList, gradeTest, graduationList } from './dojo/quiz.js';
 import { cachedQuestion } from './dojo/questions/index.js';
 import { dueToday } from './dojo/reviews.js';
-import { PRACTICE_COUNT, GRAD } from './dojo/chapters.js';
+import { PRACTICE_COUNT, GRAD, TRIAL } from './dojo/chapters.js';
 import { resumeLabel } from './game/main-event.js';
 import { nextStep } from './dojo/ranks.js';
 import { createAudio, bindUnlock } from './ui/audio.js';
@@ -154,7 +153,6 @@ function render() {
     });
   }
   if (s.name === 'about') html = aboutHTML({ credits: voiceCredits, version: VERSION_LINE });
-  if (s.name === 'tutorial') html = tutorialMenuHTML({ lessons: LESSONS, done: tutorialDone(rec.settings) });
   if (s.name === 'stats') html = statsHTML(buildStatsView(rec, s.tab ?? 'quality'));
   stage.innerHTML = html + (overlay ?? '');
   gate.arm(performance.now());
@@ -193,7 +191,8 @@ function goStep(ch, kind) {
     const page = c?.lectureDone ? 0 : c?.lecturePage ?? 0;
     commit(A.turnLecture(rec, ch, page, count));
     show({ name: 'lecture', ch, page });
-  } else if (kind === 'practice') {
+  } else if (kind === 'trial') startTrial(ch);
+  else if (kind === 'practice') {
     if (!c?.practice) commit(A.startPractice(rec, ch, newSeed()));
     const p = rec.chapters[ch].practice;
     const list = practiceList(ch, p.seed);
@@ -313,19 +312,23 @@ const soundOpts = () => ({
   motion: () => motionNow(rec.settings, REDUCED),
 });
 
-// 遊び方のチュートリアル（設計書 段階5-4）：目次の1つを卓で流す。最後まで終えたら終えた印を記録に残す
-function startTutorial(id) {
-  const lesson = lessonOf(id);
-  if (!lesson) return;
+// 道場の段「卓で体験」（設計書 段階5-4・2026-10-12 道場の段に）：その章のレッスンを卓で流す。最後まで終えたら終えた印を記録に残す。
+// id を省くと、終えていない最初のレッスン（全部終えた章は最初のレッスン）から
+function startTrial(ch, id = trialState(rec, ch).next ?? TRIAL[ch]?.[0]) {
+  const lessons = LESSONS.filter((l) => TRIAL[ch]?.includes(l.id));
+  const lesson = lessons.find((l) => l.id === id);
+  if (!lesson) { show({ name: 'dojo', selected: ch }); return; }
   if (table) { table.stop(); table = null; }
   screen = { name: 'table', ch: null };
   overlay = null;
   table = createTutorialGame(stage, {
     ...soundOpts(),
-    lesson, heroName: rec.profile.name ?? 'あなた', nextLesson: nextLessonOf(LESSONS, id),
-    onDone: (id) => commit(withTutorialDone(rec, id)),
-    onNext: (next) => startTutorial(next),
-    onExit: () => show({ name: 'tutorial' }),
+    lesson, heroName: rec.profile.name ?? 'あなた',
+    nextLesson: nextLessonOf(lessons, id),
+    onDone: (done) => commit(withTutorialDone(rec, done)),
+    onNext: (next) => startTrial(ch, next),
+    onPractice: () => goStep(ch, 'practice'),
+    onExit: () => show({ name: 'dojo', selected: ch }),
   });
 }
 
@@ -388,17 +391,10 @@ const ACTIONS = {
   'dlg-close': () => { overlay = null; pendingImport = null; render(); },
   'name-ok': submitName,
   'name-cancel': () => { overlay = null; render(); },
-  resume: () => {
-    const t = resumeTarget(rec, today());
-    if (!t) show({ name: 'dojo' });
-    else if (t.kind === 'review') startReview();
-    else if (t.kind === 'grad') goGrad();
-    else goStep(t.chapter, t.kind);
-  },
+  // 道場で学ぶ（タイトルの入口）：次にすることの章（卒業試験の段）を選んで道場を開く
+  learn: () => show({ name: 'dojo', selected: dojoTarget(rec, today()) ?? undefined }),
   dojo: () => show({ name: 'dojo' }),
   title: () => show({ name: 'title' }),
-  tutorial: () => show({ name: 'tutorial' }),
-  'tut-start': (el) => startTutorial(el.dataset.lesson),
   free: startFreePlay,
   main: () => {
     if (!rec.mainGame) { startMain(null); return; }
@@ -435,7 +431,7 @@ const ACTIONS = {
   grad: goGrad,
   'lec-prev': () => turnTo(screen.page - 1),
   'lec-next': () => turnTo(screen.page + 1),
-  'lec-done': () => goStep(screen.ch, 'practice'),
+  'lec-done': () => goStep(screen.ch, TRIAL[screen.ch] ? 'trial' : 'practice'),
   choose: (el) => choose(Number(el.dataset.i)),
   next: nextQuestion,
   quit: () => dialog('やめますか？', '<p>ここまでの答えは保存されています。続きはあとからできます。</p>', [{ go: 'quit-ok', label: 'やめる', primary: true }, { go: 'dlg-close', label: '続ける' }]),

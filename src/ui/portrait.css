@@ -203,9 +203,6 @@ body.rotate #rotate{display:flex}
 /* 部品は縮めない（入りきらないときに、札の扇が縮んでチップと名札が黙って重ならないように。高さの合計は e2e-mobile で測る） */
 .pt .tp>*{flex:none}
 .pt .tp-head{text-align:center}
-.pt .st-body.tut-menu{padding:12px}
-.pt .tut-item{min-height:44px;padding:10px 14px}
-.pt .tut-item b{font-size:16px}
 .pt .tut-bubble{width:360px;padding:12px 14px 10px;font-size:14px;line-height:1.6}
 .pt .tp .tlogo{width:120px;height:120px;margin:0 auto -4px}
 .pt .tp .brand{font-size:12px}
@@ -213,7 +210,7 @@ body.rotate #rotate{display:flex}
 .pt .tp-fan{position:relative;height:150px;margin-top:-4px}
 .pt .tp-fan .tcard{top:6px;margin-left:-34px}
 .pt .tp-fan .tcard .cd{width:68px;height:95px}
-.pt .tp-fan .cstack{position:absolute;top:96px;transform:none;line-height:0}
+.pt .tp-fan .cstack{position:absolute;bottom:4px;transform:none;line-height:0}
 .pt .tp-who{display:flex;align-items:center;gap:10px;margin-top:6px;padding:8px 12px;border-radius:12px;background:rgba(58,38,24,.92);border:1px solid var(--gold);color:#f3e6c8}
 .pt .tp-who img{width:42px;height:42px;flex:none;border-radius:50%;border:2px solid var(--gold);object-fit:cover;object-position:50% 18%}
 .pt .tp-who > div{flex:1;min-width:0}
@@ -221,22 +218,17 @@ body.rotate #rotate{display:flex}
 .pt .tp-who small{display:block;font-size:11px;color:#d9c49a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pt .tp-who .prog{width:auto;margin-top:4px}
 .pt .tp-who .medal{width:40px;height:40px;font-size:11px}
-/* チュートリアルの入口（「はじめる」のすぐ上。緑と金の縁で、ほかのボタンと見分ける） */
-.pt .tp-tut{display:flex;flex-direction:column;align-items:center;justify-content:center;height:48px;margin-top:8px;padding:0 10px;border-radius:14px;cursor:pointer;
-  background:linear-gradient(#2f7a4c,#1d5a36);border:2px solid #d6b25a;box-shadow:0 3px 0 #0f3a22,0 6px 12px rgba(0,0,0,.25)}
-.pt .tp-tut b{font:800 16px "Yu Gothic UI","Segoe UI",sans-serif;color:#fff3c4}
-.pt .tp-tut small{font:600 11px "Yu Gothic UI","Segoe UI",sans-serif;color:#d4ecdc;margin-top:1px}
-.pt .tp-go{display:flex;flex-direction:column;align-items:center;justify-content:center;height:58px;margin-top:10px;border:0;border-radius:14px;cursor:pointer;
+/* 道場で学ぶ（タイトルの入口はこれ1つ。2026-10-12）：大きな金のボタン。下に次にすること、右上に復習の印 */
+.pt .tp-go{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;height:66px;margin-top:14px;border:0;border-radius:14px;cursor:pointer;
   font:800 20px "Yu Mincho",serif;letter-spacing:.12em;color:#3a2606;background:linear-gradient(#ffe794,#cf9c30);box-shadow:0 5px 0 #7d5a12,0 10px 18px rgba(60,40,15,.35)}
-.pt .tp-go small{font:600 11px "Yu Gothic UI","Segoe UI",sans-serif;letter-spacing:0;color:#5a3f12;margin-top:3px}
+.pt .tp-go small{font:600 12px "Yu Gothic UI","Segoe UI",sans-serif;letter-spacing:0;color:#5a3f12;margin-top:3px}
+.pt .tp-go .badge-r{position:absolute;right:8px;top:-8px;margin:0;letter-spacing:0}
 .pt .tp-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .pt .tp-tile{position:relative;height:62px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:0 12px;border-radius:12px;cursor:pointer;text-align:left;
   color:#f3e6c8;background:linear-gradient(#3a2618,#1d1108);border:1px solid var(--gold);box-shadow:0 4px 0 #0d0703}
 .pt .tp-tile b{font:800 15px "Yu Gothic UI","Segoe UI",sans-serif;color:#ffe9a6}
 .pt .tp-tile small{font-size:11px;color:#d9c49a;margin-top:2px}
-.pt .tp-tile .badge-r{position:absolute;right:6px;top:-8px;margin:0}
-.pt .tp-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto}
-.pt .tp-set{min-height:44px;padding:0 14px;border-radius:8px;cursor:pointer;font:800 13px "Yu Gothic UI","Segoe UI",sans-serif;color:#5a2f17;background:#f3e6c8;border:1px solid #c9ab76}
+.pt .tp-foot{display:flex;justify-content:center;align-items:center;min-height:28px;margin-top:auto}
 .pt .tp .ver{position:static;font-size:11px}
 /* 上の段（縦）：◀ タイトル・見出し・今日の復習・段位の印（名前は出さない） */
 .pt .sbar{height:54px;padding:0 8px;gap:8px}

@@ -52,3 +52,5 @@ export const TEST_COUNT = 20;
 export const TEST_PASS = 16;
 // 卒業試験（全9章の合格で開く総合問題。2026-10-12）：30問・24問正解で合格・各章から3問以上
 export const GRAD = { count: 30, pass: 24, perChapter: 3 };
+// 段「卓で体験」（チュートリアルのレッスンを本物の卓で遊ぶ。2026-10-12）：章 → レッスンの id（tutorial/lessons.js）の並び
+export const TRIAL = { prologue: ['screen', 'basic', 'fold'], ch5: ['allin'], ch6: ['tour'] };

@@ -1,5 +1,6 @@
 // 記録から読み取る進み具合（設計書 段階3 第3節）：章の開き方・手順の開き方・次にすること・段位・続きから。
-import { CHAPTERS, PLAYABLE, previousPlayable, chapterLabel, PRACTICE_COUNT } from './chapters.js';
+import { CHAPTERS, PLAYABLE, previousPlayable, chapterLabel, PRACTICE_COUNT, TRIAL } from './chapters.js';
+import { tutorialDone } from './tutorial-record.js';
 import { dueToday } from './reviews.js';
 import { DAN_LABEL } from './ranks.js';
 
@@ -23,7 +24,16 @@ export function isOpen(rec, id) {
   return prev === null || isPassed(rec, prev) || !!chapterRec(rec, id);
 }
 
-// 章ごとの状態。steps：講義・練習・試験それぞれの { open, done, note }（道場は座学だけ。2026-10-12）、next：次にすること
+// 卓で体験（2026-10-12）：lessons（その章のレッスン）、done（終えた数）、all（全部終えた。ない章は true）、next（終えていない最初のレッスン）
+export function trialState(rec, id) {
+  const lessons = TRIAL[id] ?? [];
+  const finished = tutorialDone(rec.settings);
+  const done = lessons.filter((l) => finished.includes(l)).length;
+  return { lessons, done, all: done === lessons.length, next: lessons.find((l) => !finished.includes(l)) ?? null };
+}
+
+// 章ごとの状態。steps：講義・（卓で体験）・練習・試験それぞれの { open, done, note }（道場は座学だけ。2026-10-12）、next：次にすること。
+// 卓で体験のある章は、それを終えると練習問題が開く。すでに練習問題に手をつけた章・合格した章では関門にしない
 export function chapterState(rec, id) {
   const meta = CHAPTERS.find((x) => x.id === id);
   if (!meta) throw new Error(`知らない章: ${id}`);
@@ -33,14 +43,19 @@ export function chapterState(rec, id) {
   const passed = isPassed(rec, id);
   const lectureDone = !!c?.lectureDone;
   const practiceDone = !!c?.practiceDone;
+  const trial = trialState(rec, id);
+  const touched = !!c?.practice || practiceDone || passed;
+  const trialGate = trial.lessons.length > 0 && !trial.all && !touched;
   const steps = {
     lecture: { open, done: lectureDone, note: lectureDone ? '読んだ' : c?.lecturePage ? `${c.lecturePage + 1}ページ目から` : '' },
-    practice: { open: open && lectureDone, done: practiceDone, note: c?.practice ? `${c.practice.index} / ${PRACTICE_COUNT}` : practiceDone ? '解いた' : '' },
+    ...(trial.lessons.length ? { trial: { open: open && lectureDone, done: trial.all, note: trial.all ? '済' : trial.done ? `${trial.done} / ${trial.lessons.length}` : '' } } : {}),
+    practice: { open: open && lectureDone && !trialGate, done: practiceDone, note: c?.practice ? `${c.practice.index} / ${PRACTICE_COUNT}` : practiceDone ? '解いた' : '' },
     test: { open: open && practiceDone, done: passed, note: c?.test ? `${c.test.answers.length} / 20` : c?.testBest != null ? `最高 ${c.testBest}点` : '' },
   };
   let next = null;
   if (open) {
     if (!lectureDone) next = { kind: 'lecture', label: c?.lecturePage ? `講義の続き（${c.lecturePage + 1}ページ目から）` : '講義を読む' };
+    else if (trialGate) next = { kind: 'trial', label: trial.done ? `卓で体験の続き（${trial.lessons.indexOf(trial.next) + 1}つ目から）` : '卓で体験する' }; // 番号は実際に始まるレッスン（古い目次では好きな順に遊べた）
     else if (c?.practice) next = { kind: 'practice', label: `練習問題の続き（${c.practice.index + 1}問目から）` };
     else if (!practiceDone) next = { kind: 'practice', label: '練習問題を解く' };
     else if (c?.test) next = { kind: 'test', label: `章末試験の続き（${c.test.answers.length + 1}問目から）` };
@@ -77,6 +92,14 @@ export function resumeTarget(rec, today = null) {
   }
   const st = chapterState(rec, first);
   return { kind: st.next.kind, chapter: first, label: `${chapterLabel(first)}・${st.next.label}`, fresh: !Object.keys(rec.chapters).length };
+}
+
+// タイトルの「道場で学ぶ」で選んで開く章（2026-10-12）：続きからの章。全章合格で未卒業なら卒業試験の段（'grad'）。
+// 今日の復習・卒業したあとは null（道場のいまの章。縦の並べ方では章の一覧）
+export function dojoTarget(rec, today = null) {
+  const t = resumeTarget(rec, today);
+  if (!t || t.kind === 'review') return null;
+  return t.kind === 'grad' ? 'grad' : t.chapter;
 }
 
 // 卒業試験の状態（2026-10-12）：open（全9章に合格）、passed・passedAt（合格した日）、best（最高点）、inProgress（途中なら答えた数・なければ null）

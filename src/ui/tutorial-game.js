@@ -1,8 +1,8 @@
-// 遊び方のチュートリアルの卓（設計書 段階5-4 第4・5-4・6節）。台本（tutorial/runner.js で当てた場面の並び）を、
+// 卓で体験（チュートリアルのレッスン）の卓（設計書 段階5-4 第4・5-4・6節・2026-10-12 道場の段に）。台本（tutorial/runner.js で当てた場面の並び）を、
 // いつもの卓の描き方（PC・縦）・動きの層（5-3）・音で流し、場面ごとに吹き出しを出す。「次へ」か、光っているボタンで進む。
 // 対局の進行（table-game.js）とは別の部品で、成績・段位・コーチの判定には何も残さない（最後まで終えたら onDone で終えた印だけ）。
-// opts：{ lesson（tutorial/lessons.js の1つ）, heroName, nextLesson（次の目次か null）, sound, soundOn(), onToggleSound(), motion(),
-//         onDone(id)（最後の場面を終えたとき）, onNext(id)（「次の〇〇へ」）, onExit()（目次へ）}
+// opts：{ lesson（tutorial/lessons.js の1つ）, heroName, nextLesson（同じ章の次のレッスンか null）, sound, soundOn(), onToggleSound(), motion(),
+//         onDone(id)（最後の場面を終えたとき）, onNext(id)（「次の〇〇へ」）, onPractice()（「練習問題へ ▶」）, onExit()（道場へ戻る）}
 import { tablePartsFor, viewFor, NOT_TABLE, motionFactor } from './table-game.js';
 import { fitStage } from './table-view.js';
 import { buildView } from './view-model.js';
@@ -43,19 +43,29 @@ export function stepsOf(beat) {
   return out;
 }
 
-// 次の目次（最後のあとは null）
+// 次のレッスン（lessons は同じ章のレッスン。最後のあとは null）
 export function nextLessonOf(lessons, id) {
   const i = lessons.findIndex((l) => l.id === id);
   return i >= 0 && i + 1 < lessons.length ? lessons[i + 1] : null;
 }
 
+// 終わりの札：同じ章に次のレッスンがあれば「次の〇〇へ」、なければ「練習問題へ ▶」。どちらも「道場へ戻る」
+export function finishHTML(lesson, next) {
+  return `<h3>「${esc(lesson.title)}」はおしまいです</h3><p>終えた印を付けました。分からない所は、道場の「卓で体験」からいつでも見直せます。</p>
+      ${next ? `<button class="mb main" data-tnext="1">次の「${esc(next.title)}」へ</button>` : '<button class="mb main" data-tpractice="1">練習問題へ ▶</button>'}<button class="mb" data-texit="1">道場へ戻る</button>`;
+}
+// やめる札（☰）：やめると道場のその章へ戻る。終えた印は付かない
+export const QUIT_HTML = '<h3>卓で体験をやめますか？</h3><p>道場へ戻ります（このレッスンに終えた印は付きません）。</p><button class="mb" data-texit="1">やめる</button><button class="mb main" data-tback="1">続ける</button>';
+// 問題の札
+export const errorHTML = (message) => `<h1>問題が起きました</h1><p>卓で体験を止めました。<br><small>${esc(String(message))}</small></p><button class="mb" data-texit="1">道場へ戻る</button>`;
+
 export function createTutorialGame(stage, opts) {
   const parts = tablePartsFor(stage.dataset.layout);
   const portrait = stage.dataset.layout === 'portrait';
-  const refs = parts.mount(stage, { mark: '入門', name: opts.heroName ?? 'あなた', sub: 'チュートリアル' });
+  const refs = parts.mount(stage, { mark: '入門', name: opts.heroName ?? 'あなた', sub: '卓で体験' });
   const dial = parts.control(refs.dial, { onChange: () => {} });
   const ui = {
-    dial, fast: false, result: null, tab: 'coach', freshDial: false, coachView: null, band: `チュートリアル　${opts.lesson.title}`, notices: [], flash: null, exam: null, grid: null,
+    dial, fast: false, result: null, tab: 'coach', freshDial: false, coachView: null, band: `卓で体験　${opts.lesson.title}`, notices: [], flash: null, exam: null, grid: null,
   };
   let runId = 0;
   let manualFast = false;
@@ -212,9 +222,7 @@ export function createTutorialGame(stage, opts) {
   function finish() {
     runId++;
     try { opts.onDone?.(opts.lesson.id); } catch (e) { console.error(e); }
-    const next = opts.nextLesson;
-    showOverlay(`<h3>「${esc(opts.lesson.title)}」はおしまいです</h3><p>目次に「済」の印を付けました。分からない所は、いつでも目次から見直せます。</p>
-      ${next ? `<button class="mb main" data-tnext="1">次の「${esc(next.title)}」へ</button>` : ''}<button class="mb" data-texit="1">目次へ</button>`);
+    showOverlay(finishHTML(opts.lesson, opts.nextLesson));
   }
 
   function showError(e) {
@@ -223,7 +231,7 @@ export function createTutorialGame(stage, opts) {
     waiting = null;
     layer.innerHTML = '';
     motion.skip();
-    showOverlay(`<h1>問題が起きました</h1><p>チュートリアルを止めました。<br><small>${esc(String(e?.message ?? e))}</small></p><button class="mb" data-texit="1">目次へ</button>`);
+    showOverlay(errorHTML(e?.message ?? e));
   }
   const run = (fn) => guarded(() => fn(runId), showError);
 
@@ -270,12 +278,13 @@ export function createTutorialGame(stage, opts) {
   });
   refs.menu.addEventListener('click', () => {
     if (refs.overlay.classList.contains('show')) return;
-    showOverlay('<h3>チュートリアルをやめますか？</h3><p>目次へ戻ります（終えた印は付きません）。</p><button class="mb" data-texit="1">やめる</button><button class="mb main" data-tback="1">続ける</button>');
+    showOverlay(QUIT_HTML);
   });
   refs.overlay.addEventListener('click', (e) => {
     if (e.target.closest('[data-tback]')) hideOverlay();
     if (e.target.closest('[data-texit]')) { runId++; opts.onExit(); }
     if (e.target.closest('[data-tnext]') && opts.nextLesson) { runId++; opts.onNext?.(opts.nextLesson.id); }
+    if (e.target.closest('[data-tpractice]')) { runId++; opts.onPractice?.(); }
   });
   fitStage(stage);
 

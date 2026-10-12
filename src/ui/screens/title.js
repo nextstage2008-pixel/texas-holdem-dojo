@@ -41,8 +41,9 @@ export function buildTitleView(rec, today, env = {}) {
     rank: rank.label,
     chapter,
     accuracy: answered ? Math.round((correct / answered) * 100) : null,
-    progress: done / (Object.keys(st.steps ?? {}).length || 3), // 章の段は3つ（講義・練習問題・章末試験）
-    resume: resume ? { label: resume.fresh ? 'はじめる' : '続きから', sub: resume.fresh ? '序章の講義から' : resume.label } : { label: '道場で学ぶ', sub: '卒業しました' },
+    progress: done / (Object.keys(st.steps ?? {}).length || 3), // 章の段は3つか4つ（講義・（卓で体験）・練習問題・章末試験）
+    // 道場で学ぶ（タイトルの入口はこれ1つ。2026-10-12）：下の小さな字は次にすること
+    dojo: { sub: !resume ? '卒業しました' : resume.fresh ? '序章の講義から' : resume.label },
     reviews: dueToday(rec.reviews, today).length,
     main: rec.mainGame ? resumeLabel(rec.mainGame.field) : null, // 本番大会の続き
     safariNote: !!env.safariNote,
@@ -51,9 +52,6 @@ export function buildTitleView(rec, today, env = {}) {
 }
 
 const FAN = parseCards('Ts Js Qs Ks As');
-// チュートリアルの入口（PC はメニューの「続きから／はじめる」のすぐ下、縦は「はじめる」のすぐ上。はじめての人が最初に目に入る所）
-const TUT_LABEL = '🔰 チュートリアル';
-const TUT_SUB = 'はじめての人はここから・画面の見方と1ハンドの進め方';
 const STACKS = [
   { left: '13%', top: 150, chips: [5000, 5000, 5000, 1000, 1000] },
   { left: '21%', top: 156, chips: [500, 500, 500] },
@@ -81,9 +79,7 @@ export function titleHTML(v, layout = 'pc') {
         <div class="hav"><img src="assets/avatars/av_hero.webp" alt=""><span class="medal">${esc(v.rank)}</span></div>
         <div><b>${esc(v.name)} さん</b><small>${esc(v.chapter)}${v.accuracy === null ? '' : `　正答率 ${v.accuracy}%`}</small><div class="prog"><i style="width:${Math.round(v.progress * 100)}%"></i></div></div>
       </div>
-      <button class="mb p" data-go="resume"><span>${v.resume.label}</span><small>${esc(v.resume.sub)}</small></button>
-      <button class="mb s tut" data-go="tutorial"><span>${TUT_LABEL}</span><small>${TUT_SUB}</small></button>
-      <button class="mb s" data-go="dojo"><span>道場で学ぶ ${review}</span><small>章を選ぶ・講義・練習問題</small></button>
+      <button class="mb p" data-go="learn"><span>道場で学ぶ${review}</span><small>${esc(v.dojo.sub)}</small></button>
       <button class="mb s" data-go="free"><span>自由対局</span><small>9人卓・指南の段階を選べる</small></button>
       <button class="mb s" data-go="main"><span>本番大会</span><small>${v.main ? `続きあり（${esc(v.main)}）` : '45人・9人×5卓・上位6人入賞'}</small></button>
       <div class="mrow"><button class="mb s" data-go="stats"><span>成績と統計</span></button><button class="mb s" data-go="settings"><span>設定</span><small>名前の変更など</small></button></div>
@@ -98,22 +94,22 @@ export function titleHTML(v, layout = 'pc') {
 const UPDATE_TEXT = '新しい版があります（押すと更新）';
 const UPDATE_PC = `<button class="ts-update" data-go="sw-update">${UPDATE_TEXT}</button>`;
 
-// 縦のタイトル（案A「ロゴが主役」）：上にロゴと札の扇・チップ、細い名札、横長の「🔰 チュートリアル」、大きな「はじめる」、四角いボタン2×2、左下に小さく「⚙ 設定」。
+// 縦のタイトル（案A「ロゴが主役」）：上にロゴと札の扇・チップ、細い名札、大きな金の「道場で学ぶ」（下に次にすること・右上に復習の印）、
+// 四角いボタン2×2（自由対局・本番大会・成績と統計・設定）、いちばん下に版。
 // 「今日の対戦相手」の顔の列は出さない
 const TP_STACKS = [{ left: '40px', chips: [1000, 1000, 500, 500, 100] }, { right: '40px', chips: [5000, 5000, 1000, 500] }];
 function titlePortraitHTML(v) {
   const fan = FAN.map((c, i) => `<div class="tcard" style="--r:${(i - 2) * 12}deg;animation-delay:${0.3 + i * 0.12}s">${cardHTML(c)}</div>`).join('');
   const stacks = TP_STACKS.map((s) => `<div class="cstack" style="${s.left ? `left:${s.left}` : `right:${s.right}`}">${chipStackSVG(s.chips, 26)}</div>`).join('');
   const review = v.reviews ? `<em class="badge-r">復習 ${v.reviews}問</em>` : '';
-  const tile = (go, label, sub, extra = '') => `<button class="tp-tile" data-go="${go}"><b>${label}</b><small>${esc(sub)}</small>${extra}</button>`;
+  const tile = (go, label, sub) => `<button class="tp-tile" data-go="${go}"><b>${label}</b><small>${esc(sub)}</small></button>`;
   return `${LOGO_DEFS}<div class="scr ts tp${v.safariNote ? ' noted' : ''}">
   ${v.update ? `<button class="tp-update" data-go="sw-update">${UPDATE_TEXT}</button>` : ''}<div class="tp-head">${palmSVG('tlogo')}<div class="brand">${BRAND}</div>${logotypeSVG('lgA')}</div>${v.safariNote ? `<button class="tp-note" data-go="home-howto">${HOME_NOTE}</button>` : ''}
   <div class="tp-fan">${fan}${stacks}</div>
   <div class="tp-who"><img src="assets/avatars/av_hero.webp" alt=""><div><b>${esc(v.name)} さん</b><small>${esc(v.chapter)}${v.accuracy === null ? '' : `　正答率 ${v.accuracy}%`}</small><div class="prog"><i style="width:${Math.round(v.progress * 100)}%"></i></div></div><span class="medal">${esc(v.rank)}</span></div>
-  <button class="tp-tut" data-go="tutorial"><b>${TUT_LABEL}</b><small>${TUT_SUB}</small></button>
-  <button class="tp-go" data-go="resume"><span>${v.resume.label}</span><small>${esc(v.resume.sub)}</small></button>
-  <div class="tp-tiles">${tile('dojo', '📖 道場で学ぶ', '章を選ぶ・講義・練習問題', review)}${tile('free', '🃏 自由対局', '9人卓・指南の段階を選べる')}${tile('main', '🏆 本番大会', v.main ? `続きあり（${v.main}）` : '45人・上位6人入賞')}${tile('stats', '📊 成績と統計', '判断の質・運と実力')}</div>
-  <div class="tp-foot"><button class="tp-set" data-go="settings">⚙ 設定</button><span class="ver">${VERSION_LINE}</span></div>
+  <button class="tp-go" data-go="learn"><span>道場で学ぶ</span><small>${esc(v.dojo.sub)}</small>${review}</button>
+  <div class="tp-tiles">${tile('free', '🃏 自由対局', '9人卓・指南の段階を選べる')}${tile('main', '🏆 本番大会', v.main ? `続きあり（${v.main}）` : '45人・上位6人入賞')}${tile('stats', '📊 成績と統計', '判断の質・運と実力')}${tile('settings', '⚙ 設定', '名前・音・動き・記録')}</div>
+  <div class="tp-foot"><span class="ver">${VERSION_LINE}</span></div>
 </div>`;
 }
 

@@ -1,12 +1,12 @@
 // 道場：章を選ぶ画面（確定見本 mock-dojo-v1.html の①）。
 import { esc } from '../format.js';
-import { CHAPTERS, chapterLabel, previousPlayable, PRACTICE_COUNT, TEST_COUNT, TEST_PASS, GRAD } from '../../dojo/chapters.js';
+import { CHAPTERS, chapterLabel, previousPlayable, PRACTICE_COUNT, TEST_COUNT, TEST_PASS, GRAD, TRIAL } from '../../dojo/chapters.js';
 import { chapterState, rankOf, currentChapter, gradState } from '../../dojo/progress.js';
 import { dueToday } from '../../dojo/reviews.js';
 import { lectureOf } from '../../dojo/lectures/chapters.js';
+import { LESSONS } from '../../tutorial/lessons.js';
 
-const STEP_KEYS = ['lecture', 'practice', 'test'];
-const STEP_SHORT = { lecture: '講', practice: '練', test: '試' };
+const STEP_SHORT = { lecture: '講', trial: '体', practice: '練', test: '試' };
 
 // 卒業試験の段（2026-10-12）：全9章に合格する前は鍵（押せない）・途中は「受験中」・卒業したら「卒業」
 function gradRow(rec, sel) {
@@ -44,18 +44,24 @@ export function buildDojoView(rec, selected, today) {
     let label = { passed: '合格', doing: '挑戦中', new: '挑戦中', soon: '準備中' }[status] ?? '';
     if (status === 'locked') label = `🔒 ${chapterLabel(previousPlayable(c.id))}の後`;
     if (status === 'new') status = 'doing';
-    const firstOpen = st.steps ? STEP_KEYS.find((k) => st.steps[k].open && !st.steps[k].done) : null;
-    const steps = st.steps ? STEP_KEYS.map((k) => ({ short: STEP_SHORT[k], state: st.steps[k].done ? 'ok' : k === firstOpen && st.open ? 'now' : '' })) : [];
+    // 「今」の印：次にすることの段（練習問題の途中の人は練習問題）。それが済んでいれば、開いていて済んでいない最初の段
+    const keys = st.steps ? Object.keys(st.steps) : [];
+    const nextStep = st.next && st.steps[st.next.kind] && !st.steps[st.next.kind].done ? st.next.kind : null;
+    const now = nextStep ?? keys.find((k) => st.steps[k].open && !st.steps[k].done);
+    const steps = keys.map((k) => ({ short: STEP_SHORT[k], state: st.steps[k].done ? 'ok' : k === now && st.open ? 'now' : '' }));
     return { id: c.id, seal: c.seal, title: c.title, ask: c.ask, status, label, steps, selected: c.id === sel, clickable: c.playable && st.open };
   });
   if (sel === 'grad') return { name: rec.profile.name ?? '', rank: rankOf(rec).label, reviews: dueToday(rec.reviews, today).length, chapters, picked, detail: gradDetail(rec) };
   const st = chapterState(rec, sel);
   const pages = st.meta.playable ? lectureOf(sel).length : 0;
+  const trial = LESSONS.filter((l) => TRIAL[sel]?.includes(l.id));
+  const minutes = trial.reduce((sum, l) => sum + l.minutes, 0);
   const rows = st.steps ? [
     { key: 'lecture', name: '講義', sub: `めくり式・${pages}ページ` },
+    { key: 'trial', name: '卓で体験', sub: `本物の卓で打ってみる・${trial.length}つ（約${minutes}分）` },
     { key: 'practice', name: '練習問題', sub: `${PRACTICE_COUNT}問・その場で答え合わせ` },
     { key: 'test', name: '章末試験', sub: `${TEST_COUNT}問・ヒントなし・${TEST_PASS}問正解で合格` },
-  ].map((r, i) => ({ ...r, n: i + 1, state: st.steps[r.key].done ? 'ok' : st.steps[r.key].open ? 'open' : 'locked', note: st.steps[r.key].note })) : [];
+  ].filter((r) => st.steps[r.key]).map((r, i) => ({ ...r, n: i + 1, state: st.steps[r.key].done ? 'ok' : st.steps[r.key].open ? 'open' : 'locked', note: st.steps[r.key].note })) : [];
   return {
     name: rec.profile.name ?? '', rank: rankOf(rec).label, reviews: dueToday(rec.reviews, today).length,
     chapters, picked,
